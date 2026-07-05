@@ -1,0 +1,12 @@
+{
+  "name": "api-key-checker",
+  "version": "0.1.0",
+  "private": true,
+  "description": "GitHub Pages friendly API key environment variable checker with an optional local helper.",
+  "scripts": {
+    "dev": "node scripts/local.js",
+    "web": "node server/static.js",
+    "helper": "node server/helper.js",
+    "check": "node --check server/helper.js && node --check server/static.js && node --check scripts/local.js"
+  }
+}

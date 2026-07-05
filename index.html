@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>API Key Checker</title>
+    <link rel="stylesheet" href="./src/styles.css" />
+  </head>
+  <body>
+    <main class="app-shell">
+      <header class="app-header">
+        <div>
+          <p class="eyebrow">Local + GitHub Pages ready</p>
+          <h1>API Key Checker</h1>
+        </div>
+        <div class="helper-status" id="helperStatus">
+          <span class="status-dot"></span>
+          <span>Checking helper...</span>
+        </div>
+      </header>
+
+      <section class="toolbar" aria-label="Provider controls">
+        <label class="field-label" for="providerSelect">Providers</label>
+        <select id="providerSelect" class="provider-select" multiple size="8"></select>
+        <div class="toolbar-actions">
+          <button id="selectTopButton" type="button">Select curated 12</button>
+          <button id="clearButton" type="button" class="secondary">Clear</button>
+          <button id="refreshButton" type="button" class="secondary">Refresh scan</button>
+        </div>
+      </section>
+
+      <section class="notice" id="modeNotice"></section>
+
+      <section class="status-panel" aria-label="Selected provider API key status">
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Provider</th>
+                <th>Environment variable</th>
+                <th>Status</th>
+                <th>Value</th>
+                <th>Action</th>
+              </tr>
+            </thead>
+            <tbody id="statusRows"></tbody>
+          </table>
+        </div>
+      </section>
+    </main>
+
+    <script type="module" src="./src/app.js"></script>
+  </body>
+</html>
