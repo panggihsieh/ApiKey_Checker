@@ -7,6 +7,6 @@
     "dev": "node scripts/local.js",
     "web": "node server/static.js",
     "helper": "node server/helper.js",
-    "check": "node --check server/helper.js && node --check server/static.js && node --check scripts/local.js"
+    "check": "node --check src/app.js && node --check src/providers.js && node --check server/helper.js && node --check server/static.js && node --check scripts/local.js"
   }
 }

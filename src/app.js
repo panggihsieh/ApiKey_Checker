@@ -43,6 +43,19 @@ function shellQuote(value) {
   return String(value).replace(/'/g, "'\\''");
 }
 
+function shellExportValue(value) {
+  return `"${String(value)
+    .replace(/\\/g, "\\\\")
+    .replace(/"/g, '\\"')
+    .replace(/\$/g, "\\$")
+    .replace(/`/g, "\\`")}"`;
+}
+
+function buildProfileAppendCommand(envVar, value) {
+  const exportLine = `export ${envVar}=${shellExportValue(value)}`;
+  return `printf '%s\\n' '${shellQuote(exportLine)}' >> ~/.zshrc`;
+}
+
 function getSelectedProviders() {
   const selectedIds = Array.from(providerSelect.selectedOptions).map((option) => option.value);
   return state.providers.filter((provider) => selectedIds.includes(provider.id));
@@ -50,10 +63,6 @@ function getSelectedProviders() {
 
 function getSelectedEnvVars() {
   return [...new Set(getSelectedProviders().flatMap((provider) => provider.envVars))];
-}
-
-function findProviderForEnv(envVar) {
-  return state.providers.find((provider) => provider.envVars.includes(envVar));
 }
 
 function setHelperStatus(connected) {
@@ -70,12 +79,15 @@ function setHelperStatus(connected) {
 }
 
 function renderProviders() {
-  providerSelect.innerHTML = state.providers
-    .map(
-      (provider) =>
-        `<option value="${provider.id}" selected>${provider.rank}. ${provider.name}</option>`,
-    )
-    .join("");
+  providerSelect.replaceChildren();
+
+  for (const provider of state.providers) {
+    const option = document.createElement("option");
+    option.value = provider.id;
+    option.selected = true;
+    option.textContent = `${provider.rank}. ${provider.name}`;
+    providerSelect.append(option);
+  }
 }
 
 async function loadProviderCatalog() {
@@ -121,8 +133,11 @@ async function loadProviderCatalog() {
 
 function renderRows() {
   const providers = getSelectedProviders();
-  const rows = providers.flatMap((provider) =>
-    provider.envVars.map((envVar) => {
+
+  statusRows.replaceChildren();
+
+  for (const provider of providers) {
+    for (const envVar of provider.envVars) {
       const result = state.scanResults[envVar] || { status: "unknown", value: "" };
       const inputValue = state.inputValues[envVar] || "";
       const isFound = result.status === "found";
@@ -131,39 +146,67 @@ function renderRows() {
       const statusLabel = state.helperConnected ? result.status : "helper required";
       const statusClass = state.helperConnected ? result.status : "unknown";
 
-      return `
-        <tr>
-          <td>
-            <strong>${provider.name}</strong>
-          </td>
-          <td><code>${envVar}</code></td>
-          <td><span class="pill ${statusClass}">${statusLabel}</span></td>
-          <td>
-            ${
-              isFound
-                ? `<span class="key-value">${shownValue}</span>`
-                : `<input class="key-input" data-env-input="${envVar}" type="password" autocomplete="off" placeholder="Enter ${envVar}" value="${inputValue}" />`
-            }
-          </td>
-          <td>
-            ${
-              isFound
-                ? `<button type="button" class="secondary" data-toggle-key="${envVar}">${
-                    isVisible ? "Hide" : "Show"
-                  }</button>`
-                : `<button type="button" data-save-key="${envVar}">${
-                    state.helperConnected ? "Save" : "Copy command"
-                  }</button>`
-            }
-          </td>
-        </tr>
-      `;
-    }),
-  );
+      const row = document.createElement("tr");
+      const providerCell = document.createElement("td");
+      const providerName = document.createElement("strong");
+      providerName.textContent = provider.name;
+      providerCell.append(providerName);
 
-  statusRows.innerHTML =
-    rows.join("") ||
-    `<tr><td colspan="5" class="empty-state">Select at least one provider to inspect API key variables.</td></tr>`;
+      const envCell = document.createElement("td");
+      const envCode = document.createElement("code");
+      envCode.textContent = envVar;
+      envCell.append(envCode);
+
+      const statusCell = document.createElement("td");
+      const statusPill = document.createElement("span");
+      statusPill.className = `pill ${statusClass}`;
+      statusPill.textContent = statusLabel;
+      statusCell.append(statusPill);
+
+      const valueCell = document.createElement("td");
+      if (isFound) {
+        const valueText = document.createElement("span");
+        valueText.className = "key-value";
+        valueText.textContent = shownValue;
+        valueCell.append(valueText);
+      } else {
+        const input = document.createElement("input");
+        input.className = "key-input";
+        input.dataset.envInput = envVar;
+        input.type = "password";
+        input.autocomplete = "off";
+        input.placeholder = `Enter ${envVar}`;
+        input.value = inputValue;
+        valueCell.append(input);
+      }
+
+      const actionCell = document.createElement("td");
+      const actionButton = document.createElement("button");
+      actionButton.type = "button";
+      if (isFound) {
+        actionButton.className = "secondary";
+        actionButton.dataset.toggleKey = envVar;
+        actionButton.textContent = isVisible ? "Hide" : "Show";
+      } else {
+        actionButton.dataset.saveKey = envVar;
+        actionButton.textContent = state.helperConnected ? "Save" : "Copy command";
+      }
+      actionCell.append(actionButton);
+
+      row.append(providerCell, envCell, statusCell, valueCell, actionCell);
+      statusRows.append(row);
+    }
+  }
+
+  if (providers.length === 0) {
+    const row = document.createElement("tr");
+    const cell = document.createElement("td");
+    cell.colSpan = 5;
+    cell.className = "empty-state";
+    cell.textContent = "Select at least one provider to inspect API key variables.";
+    row.append(cell);
+    statusRows.append(row);
+  }
 }
 
 async function checkHelper() {
@@ -211,7 +254,7 @@ async function saveKey(envVar) {
   }
 
   if (!state.helperConnected) {
-    const command = `echo 'export ${envVar}='\\''${shellQuote(value)}'\\''' >> ~/.zshrc`;
+    const command = buildProfileAppendCommand(envVar, value);
     await navigator.clipboard.writeText(command);
     alert(`Copied setup command for ${envVar}.`);
     return;
