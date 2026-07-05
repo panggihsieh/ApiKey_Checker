@@ -37,6 +37,12 @@ Use a custom shell profile for testing:
 API_KEY_CHECKER_PROFILE=/tmp/api-key-checker.zshrc npm run helper
 ```
 
+If the helper is running on a custom port, add the same port to the webapp URL:
+
+```text
+http://localhost:5173/?helperPort=8788
+```
+
 ## GitHub Pages Mode
 
 GitHub Pages can host the frontend files directly:
@@ -111,4 +117,10 @@ http://localhost:8787
 
 ```bash
 API_KEY_CHECKER_PROFILE=/tmp/api-key-checker.zshrc npm run helper
+```
+
+如果 helper 使用自訂 port，請在 WebApp URL 加上相同 port：
+
+```text
+http://localhost:5173/?helperPort=8788
 ```

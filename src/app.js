@@ -1,6 +1,6 @@
-import { curatedProviders } from "./providers.js";
+import { curatedProviders } from "./providers.js?v=20260705-provider-count";
 
-const helperBaseUrl = "http://127.0.0.1:8787";
+const defaultHelperPort = "8787";
 const eyebrowText = document.querySelector("#eyebrowText");
 const languageLabel = document.querySelector("#languageLabel");
 const languageSelect = document.querySelector("#languageSelect");
@@ -29,6 +29,7 @@ const state = {
   providerLimit: 12,
   catalogSource: "curated",
   helperConnected: false,
+  helperBaseUrl: "",
   scanResults: {},
   visibleKeys: new Set(),
   inputValues: {},
@@ -43,7 +44,8 @@ const messages = {
     providerLabel: "供應商",
     providerCountLabel: "供應商數量",
     providerHelp:
-      "{count} 家資料來源：依主流 LLM API 供應商（OpenAI、Anthropic Claude、Google Gemini）與常見環境變數命名整理，依內建 rank 排序；更新時間：2026-07-05。",
+      "{count} 家資料來源：依主流 LLM API 供應商（OpenAI、Anthropic Claude、Google Gemini）與常見環境變數命名整理，依內建 rank 排序；",
+    updatedAt: "更新時間：2026-07-05",
     selectTop: "選取目前 {count} 家",
     clear: "清除",
     refresh: "重新掃描",
@@ -87,7 +89,8 @@ const messages = {
     providerLabel: "Providers",
     providerCountLabel: "Provider count",
     providerHelp:
-      "Source for the {count} providers: a built-in curated list in src/providers.js, mapped from mainstream LLM API providers including OpenAI, Anthropic Claude, and Google Gemini to common environment variable names. Display logic: providers are sorted by built-in rank. Updated: 2026-07-05.",
+      "Source for the {count} providers: a built-in curated list in src/providers.js, mapped from mainstream LLM API providers including OpenAI, Anthropic Claude, and Google Gemini to common environment variable names. Display logic: providers are sorted by built-in rank. ",
+    updatedAt: "Updated: 2026-07-05",
     selectTop: "Select current {count}",
     clear: "Clear",
     refresh: "Refresh scan",
@@ -139,6 +142,16 @@ function catalogText() {
   return t("catalogCurated");
 }
 
+function renderProviderHelp() {
+  providerHelp.replaceChildren();
+  providerHelp.append(formatMessage("providerHelp", { count: state.providerLimit }));
+
+  const updatedAt = document.createElement("strong");
+  updatedAt.className = "updated-at";
+  updatedAt.textContent = t("updatedAt");
+  providerHelp.append(updatedAt, t("sentenceEnd"));
+}
+
 function visibleProviders() {
   return state.providers
     .slice()
@@ -173,6 +186,32 @@ function shellExportValue(value) {
 function buildProfileAppendCommand(envVar, value) {
   const exportLine = `export ${envVar}=${shellExportValue(value)}`;
   return `printf '%s\\n' '${shellQuote(exportLine)}' >> ~/.zshrc`;
+}
+
+function helperPort() {
+  const params = new URLSearchParams(window.location.search);
+  const port = params.get("helperPort") || defaultHelperPort;
+  return /^\d{2,5}$/.test(port) ? port : defaultHelperPort;
+}
+
+function helperCandidates() {
+  const port = helperPort();
+  const origins = [`http://127.0.0.1:${port}`, `http://localhost:${port}`];
+  return [...new Set(origins)];
+}
+
+async function fetchWithTimeout(url, options = {}) {
+  const controller = new AbortController();
+  const timeout = window.setTimeout(() => controller.abort(), 1500);
+
+  try {
+    return await fetch(url, {
+      ...options,
+      signal: controller.signal,
+    });
+  } finally {
+    window.clearTimeout(timeout);
+  }
 }
 
 function getSelectedProviders() {
@@ -212,7 +251,7 @@ function renderStaticText() {
   providerCountLabel.textContent = t("providerCountLabel");
   providerCountSelect.setAttribute("aria-label", t("providerCountLabel"));
   providerLabel.textContent = t("providerLabel");
-  providerHelp.textContent = formatMessage("providerHelp", { count: state.providerLimit });
+  renderProviderHelp();
   selectTopButton.textContent = formatMessage("selectTop", { count: state.providerLimit });
   clearButton.textContent = t("clear");
   refreshButton.textContent = t("refresh");
@@ -232,6 +271,9 @@ function renderProviders() {
     option.value = provider.id;
     option.textContent = `${provider.rank}. ${provider.name}`;
     option.selected = false;
+    if (provider.isMainlandChinaTop) {
+      option.className = "mainland-top-provider";
+    }
     providerSelect.append(option);
   }
 }
@@ -263,6 +305,9 @@ function renderRows() {
       row.dataset.providerId = provider.id;
       const providerCell = document.createElement("td");
       providerCell.className = "provider-cell";
+      if (provider.isMainlandChinaTop) {
+        providerCell.classList.add("mainland-top-provider");
+      }
       providerCell.title = t("doubleClickHint");
       const providerName = document.createElement("strong");
       providerName.textContent = provider.name;
@@ -350,12 +395,21 @@ function toggleProviderKeys(providerId) {
 }
 
 async function checkHelper() {
-  try {
-    const response = await fetch(`${helperBaseUrl}/health`, { cache: "no-store" });
-    setHelperStatus(response.ok);
-  } catch {
-    setHelperStatus(false);
+  for (const candidate of helperCandidates()) {
+    try {
+      const response = await fetchWithTimeout(`${candidate}/health`, { cache: "no-store" });
+      if (response.ok) {
+        state.helperBaseUrl = candidate;
+        setHelperStatus(true);
+        return;
+      }
+    } catch {
+      // Try the next loopback hostname before falling back to GitHub Pages mode.
+    }
   }
+
+  state.helperBaseUrl = "";
+  setHelperStatus(false);
 }
 
 async function scanKeys() {
@@ -372,7 +426,7 @@ async function scanKeys() {
     return;
   }
 
-  const response = await fetch(`${helperBaseUrl}/api/check`, {
+  const response = await fetchWithTimeout(`${state.helperBaseUrl}/api/check`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ envVars }),
@@ -400,7 +454,7 @@ async function saveKey(envVar) {
     return;
   }
 
-  const response = await fetch(`${helperBaseUrl}/api/save`, {
+  const response = await fetchWithTimeout(`${state.helperBaseUrl}/api/save`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ envVar, value }),

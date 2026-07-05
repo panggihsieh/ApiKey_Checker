@@ -182,6 +182,11 @@ h1 {
   line-height: 1.55;
 }
 
+.updated-at {
+  color: var(--accent);
+  font-weight: 800;
+}
+
 .provider-select {
   grid-column: 1;
   min-height: 210px;
@@ -195,6 +200,11 @@ h1 {
 
 .provider-select option {
   padding: 7px;
+}
+
+.provider-select option.mainland-top-provider {
+  color: var(--danger);
+  font-weight: 800;
 }
 
 .toolbar-actions {
@@ -290,6 +300,11 @@ code {
 
 .provider-cell:hover strong {
   text-decoration-color: var(--accent);
+}
+
+.provider-cell.mainland-top-provider strong {
+  color: var(--danger);
+  font-weight: 800;
 }
 
 .pill {
