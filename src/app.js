@@ -6,6 +6,7 @@ const languageLabel = document.querySelector("#languageLabel");
 const languageSelect = document.querySelector("#languageSelect");
 const providerSelect = document.querySelector("#providerSelect");
 const providerLabel = document.querySelector("#providerLabel");
+const providerHelp = document.querySelector("#providerHelp");
 const statusRows = document.querySelector("#statusRows");
 const helperStatus = document.querySelector("#helperStatus");
 const modeNotice = document.querySelector("#modeNotice");
@@ -37,6 +38,8 @@ const messages = {
     languageLabel: "介面語言",
     toolbarAria: "供應商控制",
     providerLabel: "供應商",
+    providerHelp:
+      "12 家資料來源：內建於 src/providers.js 的精選清單，依主流 LLM API 供應商與常見環境變數命名整理；呈現邏輯：依內建 rank 排序，多選後展開 env var，只掃描本機環境變數，不連接任何大模型；更新時間：2026-07-05。",
     selectTop: "選取精選 12 家",
     clear: "清除",
     refresh: "重新掃描",
@@ -78,6 +81,8 @@ const messages = {
     languageLabel: "Language",
     toolbarAria: "Provider controls",
     providerLabel: "Providers",
+    providerHelp:
+      "Source for the 12 providers: a built-in curated list in src/providers.js, mapped from mainstream LLM API providers to common environment variable names. Display logic: providers are sorted by built-in rank, selected providers expand to env vars, only local environment variables are scanned, and no model provider is contacted. Updated: 2026-07-05.",
     selectTop: "Select curated 12",
     clear: "Clear",
     refresh: "Refresh scan",
@@ -186,6 +191,7 @@ function renderStaticText() {
   toolbarSection.setAttribute("aria-label", t("toolbarAria"));
   statusPanel.setAttribute("aria-label", t("statusPanelAria"));
   providerLabel.textContent = t("providerLabel");
+  providerHelp.textContent = t("providerHelp");
   selectTopButton.textContent = t("selectTop");
   clearButton.textContent = t("clear");
   refreshButton.textContent = t("refresh");

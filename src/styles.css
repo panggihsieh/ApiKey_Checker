@@ -138,11 +138,23 @@ h1 {
   padding: 18px;
 }
 
-.field-label {
+.provider-heading {
   grid-column: 1 / -1;
+}
+
+.field-label {
+  display: inline-block;
   color: var(--muted);
   font-size: 0.9rem;
   font-weight: 700;
+}
+
+.provider-help {
+  max-width: 920px;
+  margin: 8px 0 0;
+  color: var(--muted);
+  font-size: 0.92rem;
+  line-height: 1.55;
 }
 
 .provider-select {
