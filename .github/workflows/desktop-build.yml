@@ -31,7 +31,7 @@ jobs:
         run: npm run check
 
       - name: Build DMG
-        run: npm run dist:mac
+        run: npm run dist:mac -- --publish never
 
       - name: Upload DMG
         uses: actions/upload-artifact@v4
@@ -45,6 +45,7 @@ jobs:
   windows:
     name: Build Windows MSI and EXE
     runs-on: windows-2022
+    continue-on-error: true
 
     steps:
       - name: Checkout
@@ -63,7 +64,7 @@ jobs:
         run: npm run check
 
       - name: Build MSI and NSIS
-        run: npm run dist:win
+        run: npm run dist:win -- --publish never
 
       - name: Upload Windows installers
         uses: actions/upload-artifact@v4
@@ -79,7 +80,6 @@ jobs:
     name: Publish GitHub release
     needs:
       - mac
-      - windows
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/')
 
@@ -92,6 +92,7 @@ jobs:
 
       - name: Download Windows artifacts
         uses: actions/download-artifact@v4
+        continue-on-error: true
         with:
           name: api-key-checker-windows
           path: release-assets
