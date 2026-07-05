@@ -1,142 +1,3 @@
-# API Key Checker
-
-API Key Checker is a GitHub Pages friendly webapp for checking which LLM API key environment variables should exist for selected providers.
-
-The app has two modes:
-
-- GitHub Pages mode: select providers, view environment variable names, enter keys, and copy shell setup commands.
-- Local helper mode: scan local environment variables and save missing keys to a shell profile.
-
-## Run Locally
-
-```bash
-npm run dev
-```
-
-Open:
-
-```text
-http://localhost:5173
-```
-
-The local helper runs at:
-
-```text
-http://localhost:8787
-```
-
-By default, saved keys are written to:
-
-```text
-~/.zshrc
-```
-
-Use a custom shell profile for testing:
-
-```bash
-API_KEY_CHECKER_PROFILE=/tmp/api-key-checker.zshrc npm run helper
-```
-
-Local scanning checks the running app process first, then reads shell profile files on macOS/Linux:
-
-```text
-~/.zshrc
-~/.zprofile
-~/.bashrc
-~/.bash_profile
-~/.profile
-```
-
-This makes the installed desktop app more reliable when launched from Finder, Dock, or Start menu, where GUI apps may not inherit the same environment variables as a terminal shell.
-
-If the helper is running on a custom port, add the same port to the webapp URL:
-
-```text
-http://localhost:5173/?helperPort=8788
-```
-
-## Desktop App / Installers
-
-The desktop app is packaged with Electron. In desktop mode, the app starts both
-the web UI and the local helper automatically on localhost, so users do not need
-to run `npm run helper` separately.
-
-Run the desktop app during development:
-
-```bash
-npm start
-```
-
-Build a macOS DMG:
-
-```bash
-npm run dist:mac
-```
-
-Build Windows x64 installers on Windows or a Windows CI runner:
-
-```bash
-npm run dist:win
-```
-
-The Windows build is configured to produce both an NSIS `.exe` installer and an
-MSI `.msi` installer. MSI generation uses WiX tooling, so it is most reliable on
-Windows. Cross-building MSI from macOS can fail if Wine/WiX is unavailable or
-misconfigured.
-
-On Apple Silicon macOS, a local MSI fallback is available after `msitools` is
-installed:
-
-```bash
-brew install msitools
-npm run dist:win:msi-local
-```
-
-This builds the Windows unpacked app with Electron Builder, then creates a
-per-user MSI from `dist/win-unpacked` using native `wixl`.
-
-The macOS build is currently unsigned (`identity: null`) for local distribution.
-For public distribution, configure Apple Developer code signing and notarization.
-
-## GitHub Pages Mode
-
-GitHub Pages can host the frontend files directly:
-
-- `index.html`
-- `src/app.js`
-- `src/providers.js`
-- `src/styles.css`
-
-Browser security prevents GitHub Pages from reading local environment variables or writing `~/.zshrc`. Without the local helper, the app generates copyable shell commands instead.
-
-Some browsers also block a remote HTTPS GitHub Pages page from calling a local helper over loopback HTTP, even when the helper is running. For reliable local scanning, run `npm run dev` and use the local app at `http://localhost:5173`.
-
-## Providers
-
-The initial curated provider list includes:
-
-- OpenAI / Codex
-- Anthropic Claude
-- Google Gemini
-- DeepSeek
-- xAI Grok
-- Mistral AI
-- Cohere
-- Meta Llama
-- Alibaba Qwen / DashScope
-- Baidu ERNIE / Qianfan
-- Moonshot / Kimi
-- Zhipu AI / GLM
-
-## Safety
-
-- API keys are masked by default.
-- API keys are not stored in `localStorage`.
-- API keys are not sent to third-party services.
-- Keys are sent only to the local helper when saving.
-
----
-
 # API Key Checker 中文說明
 
 API Key Checker 是一個可部署到 GitHub Pages 的 WebApp，用來檢查所選 LLM 供應商應該設定哪些 API key 環境變數。
@@ -201,6 +62,17 @@ http://localhost:5173/?helperPort=8788
 桌面版使用 Electron 打包。桌面模式會自動在 localhost 啟動 Web UI 與本機
 helper，因此使用者不需要另外執行 `npm run helper`。
 
+### 下載並在 macOS 執行
+
+1. 前往 [GitHub Releases](https://github.com/panggihsieh/ApiKey_Checker/releases)。
+2. 下載最新版 release 裡的 `API.Key.Checker-*-mac-arm64.dmg`。
+3. 開啟下載的 `.dmg` 檔。
+4. 將 `API Key Checker` 拖曳到 `Applications`。
+5. 第一次開啟時，如果 macOS 顯示未簽章或無法驗證開發者，請在 Finder 的
+   `Applications` 裡對 `API Key Checker` 按右鍵，選擇「打開」，再確認開啟。
+
+目前 macOS DMG 是 Apple Silicon arm64 版本，適用於 M 系列 Mac。
+
 開發時啟動桌面版：
 
 ```bash
@@ -235,3 +107,246 @@ npm run dist:win:msi-local
 
 目前 macOS build 是未簽章版本（`identity: null`），適合本機測試或內部使用。
 若要公開發佈，請再設定 Apple Developer 簽章與 notarization。
+
+## 供應商
+
+目前內建供應商清單共 50 家：
+
+- OpenAI / Codex
+- Anthropic Claude
+- Google Gemini
+- DeepSeek
+- xAI Grok
+- Mistral AI
+- Cohere
+- Meta Llama
+- Alibaba Qwen / DashScope
+- Baidu ERNIE / Qianfan
+- Moonshot / Kimi
+- Zhipu AI / GLM
+- OpenRouter
+- Perplexity
+- Together AI
+- Groq
+- Fireworks AI
+- Replicate
+- Hugging Face
+- Azure OpenAI
+- AWS Bedrock
+- Google Vertex AI
+- IBM watsonx.ai
+- NVIDIA AI
+- Cerebras
+- SambaNova
+- AI21 Labs
+- Voyage AI
+- Jina AI
+- Aleph Alpha
+- Anyscale
+- OctoAI
+- Baseten
+- Modal
+- fal.ai
+- Stability AI
+- Runway
+- ElevenLabs
+- AssemblyAI
+- Deepgram
+- Rev AI
+- Pinecone
+- Weaviate
+- Qdrant
+- Zilliz / Milvus
+- Tencent Hunyuan
+- ByteDance Doubao / Volcano Engine
+- iFlytek Spark
+- MiniMax
+- Baichuan AI
+---
+
+# API Key Checker
+
+API Key Checker is a GitHub Pages friendly webapp for checking which LLM API key environment variables should exist for selected providers.
+
+The app has two modes:
+
+- GitHub Pages mode: select providers, view environment variable names, enter keys, and copy shell setup commands.
+- Local helper mode: scan local environment variables and save missing keys to a shell profile.
+
+## Run Locally
+
+```bash
+npm run dev
+```
+
+Open:
+
+```text
+http://localhost:5173
+```
+
+The local helper runs at:
+
+```text
+http://localhost:8787
+```
+
+By default, saved keys are written to:
+
+```text
+~/.zshrc
+```
+
+Use a custom shell profile for testing:
+
+```bash
+API_KEY_CHECKER_PROFILE=/tmp/api-key-checker.zshrc npm run helper
+```
+
+Local scanning checks the running app process first, then reads shell profile files on macOS/Linux:
+
+```text
+~/.zshrc
+~/.zprofile
+~/.bashrc
+~/.bash_profile
+~/.profile
+```
+
+This makes the installed desktop app more reliable when launched from Finder, Dock, or Start menu, where GUI apps may not inherit the same environment variables as a terminal shell.
+
+If the helper is running on a custom port, add the same port to the webapp URL:
+
+```text
+http://localhost:5173/?helperPort=8788
+```
+
+## Desktop App / Installers
+
+The desktop app is packaged with Electron. In desktop mode, the app starts both
+the web UI and the local helper automatically on localhost, so users do not need
+to run `npm run helper` separately.
+
+### Download and Run on macOS
+
+1. Go to [GitHub Releases](https://github.com/panggihsieh/ApiKey_Checker/releases).
+2. Download `API.Key.Checker-*-mac-arm64.dmg` from the latest release.
+3. Open the downloaded `.dmg` file.
+4. Drag `API Key Checker` into `Applications`.
+5. On first launch, if macOS says the app is unsigned or the developer cannot be
+   verified, right-click `API Key Checker` in Finder under `Applications`, choose
+   `Open`, then confirm.
+
+The current macOS DMG is an Apple Silicon arm64 build for M-series Macs.
+
+Run the desktop app during development:
+
+```bash
+npm start
+```
+
+Build a macOS DMG:
+
+```bash
+npm run dist:mac
+```
+
+Build Windows x64 installers on Windows or a Windows CI runner:
+
+```bash
+npm run dist:win
+```
+
+The Windows build is configured to produce both an NSIS `.exe` installer and an
+MSI `.msi` installer. MSI generation uses WiX tooling, so it is most reliable on
+Windows. Cross-building MSI from macOS can fail if Wine/WiX is unavailable or
+misconfigured.
+
+On Apple Silicon macOS, a local MSI fallback is available after `msitools` is
+installed:
+
+```bash
+brew install msitools
+npm run dist:win:msi-local
+```
+
+This builds the Windows unpacked app with Electron Builder, then creates a
+per-user MSI from `dist/win-unpacked` using native `wixl`.
+
+The macOS build is currently unsigned (`identity: null`) for local distribution.
+For public distribution, configure Apple Developer code signing and notarization.
+
+## GitHub Pages Mode
+
+GitHub Pages can host the frontend files directly:
+
+- `index.html`
+- `src/app.js`
+- `src/providers.js`
+- `src/styles.css`
+
+Browser security prevents GitHub Pages from reading local environment variables or writing `~/.zshrc`. Without the local helper, the app generates copyable shell commands instead.
+
+Some browsers also block a remote HTTPS GitHub Pages page from calling a local helper over loopback HTTP, even when the helper is running. For reliable local scanning, run `npm run dev` and use the local app at `http://localhost:5173`.
+
+## Providers
+
+The built-in provider list currently includes 50 providers:
+
+- OpenAI / Codex
+- Anthropic Claude
+- Google Gemini
+- DeepSeek
+- xAI Grok
+- Mistral AI
+- Cohere
+- Meta Llama
+- Alibaba Qwen / DashScope
+- Baidu ERNIE / Qianfan
+- Moonshot / Kimi
+- Zhipu AI / GLM
+- OpenRouter
+- Perplexity
+- Together AI
+- Groq
+- Fireworks AI
+- Replicate
+- Hugging Face
+- Azure OpenAI
+- AWS Bedrock
+- Google Vertex AI
+- IBM watsonx.ai
+- NVIDIA AI
+- Cerebras
+- SambaNova
+- AI21 Labs
+- Voyage AI
+- Jina AI
+- Aleph Alpha
+- Anyscale
+- OctoAI
+- Baseten
+- Modal
+- fal.ai
+- Stability AI
+- Runway
+- ElevenLabs
+- AssemblyAI
+- Deepgram
+- Rev AI
+- Pinecone
+- Weaviate
+- Qdrant
+- Zilliz / Milvus
+- Tencent Hunyuan
+- ByteDance Doubao / Volcano Engine
+- iFlytek Spark
+- MiniMax
+- Baichuan AI
+
+## Safety
+
+- API keys are masked by default.
+- API keys are not stored in `localStorage`.
+- API keys are not sent to third-party services.
+- Keys are sent only to the local helper when saving.
