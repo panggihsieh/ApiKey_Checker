@@ -51,8 +51,8 @@ const messages = {
       "即時公開來源 OpenRouter Models API（已載入 {modelCount} 個模型）；參考來源 Artificial Analysis LLM Leaderboard、LMArena / Arena Leaderboard；fallback 來源 src/providers.js",
     curatedSourceSummary:
       "即時公開來源載入失敗或不可用，使用 fallback 來源 src/providers.js；參考來源 Artificial Analysis LLM Leaderboard、LMArena / Arena Leaderboard",
-    updatedAt: "更新時間：{updatedAt}",
-    showUpdatedAt: false,
+    updatedAt: "更新日期：{updatedAt}",
+    showUpdatedAt: true,
     selectTop: "選取目前 {count} 家",
     clear: "清除",
     refresh: "重新掃描",
@@ -105,7 +105,7 @@ const messages = {
     curatedSourceSummary:
       "live public source failed or is unavailable, using fallback source src/providers.js; reference sources Artificial Analysis LLM Leaderboard and LMArena / Arena Leaderboard",
     updatedAt: "Updated: {updatedAt}",
-    showUpdatedAt: false,
+    showUpdatedAt: true,
     selectTop: "Select current {count}",
     clear: "Clear",
     refresh: "Refresh scan",
