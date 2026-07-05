@@ -28,6 +28,8 @@ const state = {
   providers: curatedProviders,
   providerLimit: 12,
   catalogSource: "curated",
+  catalogModelCount: 0,
+  catalogUpdatedAt: "2026-07-05",
   helperConnected: false,
   helperBaseUrl: "",
   scanResults: {},
@@ -44,8 +46,12 @@ const messages = {
     providerLabel: "供應商",
     providerCountLabel: "供應商數量",
     providerHelp:
-      "{count} 家資料來源：依主流 LLM API 供應商（OpenAI、Anthropic Claude、Google Gemini）與常見環境變數命名整理，依內建 rank 排序；",
-    updatedAt: "更新時間：2026-07-05",
+      "{count} 家資料來源：{sourceSummary}；呈現邏輯：先用公開模型 catalog 計算內建供應商的模型命中數並重新排序，沒有命中的供應商保留內建 rank；多選後展開 env var，只掃描本機環境變數，不呼叫模型推論。",
+    liveSourceSummary:
+      "即時公開來源 OpenRouter Models API（已載入 {modelCount} 個模型）；參考來源 Artificial Analysis LLM Leaderboard、LMArena / Arena Leaderboard；fallback 來源 src/providers.js",
+    curatedSourceSummary:
+      "即時公開來源載入失敗或不可用，使用 fallback 來源 src/providers.js；參考來源 Artificial Analysis LLM Leaderboard、LMArena / Arena Leaderboard",
+    updatedAt: "更新時間：{updatedAt}",
     selectTop: "選取目前 {count} 家",
     clear: "清除",
     refresh: "重新掃描",
@@ -65,6 +71,7 @@ const messages = {
     remoteHelperBlocked: "遠端頁可能無法直接連到本機 helper。",
     openLocalApp: "開啟本機版",
     catalogLabel: "Catalog",
+    catalogOpenRouter: "OpenRouter 即時公開模型 catalog",
     catalogCurated: "內建精選清單，不連接任何大模型",
     sentenceEnd: "。",
     doubleClickHint: "雙擊供應商可顯示或隱藏已找到的 API key",
@@ -91,8 +98,12 @@ const messages = {
     providerLabel: "Providers",
     providerCountLabel: "Provider count",
     providerHelp:
-      "Source for the {count} providers: a built-in curated list in src/providers.js, mapped from mainstream LLM API providers including OpenAI, Anthropic Claude, and Google Gemini to common environment variable names. Display logic: providers are sorted by built-in rank. ",
-    updatedAt: "Updated: 2026-07-05",
+      "Source for the {count} providers: {sourceSummary}. Display logic: the public model catalog is used to score built-in providers by model matches, providers without matches keep their built-in rank, selected providers expand to env vars, only local environment variables are scanned, and no model inference endpoint is called.",
+    liveSourceSummary:
+      "live public source OpenRouter Models API ({modelCount} models loaded); reference sources Artificial Analysis LLM Leaderboard and LMArena / Arena Leaderboard; fallback source src/providers.js",
+    curatedSourceSummary:
+      "live public source failed or is unavailable, using fallback source src/providers.js; reference sources Artificial Analysis LLM Leaderboard and LMArena / Arena Leaderboard",
+    updatedAt: "Updated: {updatedAt}",
     selectTop: "Select current {count}",
     clear: "Clear",
     refresh: "Refresh scan",
@@ -111,7 +122,8 @@ const messages = {
     remoteHelperBlocked: "The remote page may not be able to reach the local helper directly.",
     openLocalApp: "Open local app",
     catalogLabel: "Catalog",
-    catalogCurated: "Built-in curated list; no model providers are contacted",
+    catalogOpenRouter: "OpenRouter live public model catalog",
+    catalogCurated: "Built-in curated fallback",
     sentenceEnd: ".",
     doubleClickHint: "Double-click a provider to show or hide found API keys",
     statusFound: "found",
@@ -143,16 +155,26 @@ function formatMessage(key, values = {}) {
 }
 
 function catalogText() {
-  return t("catalogCurated");
+  return state.catalogSource === "openrouter" ? t("catalogOpenRouter") : t("catalogCurated");
 }
 
 function renderProviderHelp() {
   providerHelp.replaceChildren();
-  providerHelp.append(formatMessage("providerHelp", { count: state.providerLimit }));
+  const sourceSummaryKey =
+    state.catalogSource === "openrouter" ? "liveSourceSummary" : "curatedSourceSummary";
+  const sourceSummary = formatMessage(sourceSummaryKey, {
+    modelCount: state.catalogModelCount,
+  });
+  providerHelp.append(
+    formatMessage("providerHelp", {
+      count: state.providerLimit,
+      sourceSummary,
+    }),
+  );
 
   const updatedAt = document.createElement("strong");
   updatedAt.className = "updated-at";
-  updatedAt.textContent = t("updatedAt");
+  updatedAt.textContent = formatMessage("updatedAt", { updatedAt: state.catalogUpdatedAt });
   providerHelp.append(updatedAt, t("sentenceEnd"));
 }
 
@@ -214,15 +236,110 @@ function isRemotePage() {
 
 async function fetchWithTimeout(url, options = {}) {
   const controller = new AbortController();
-  const timeout = window.setTimeout(() => controller.abort(), 1500);
+  const { timeoutMs = 1500, ...fetchOptions } = options;
+  const timeout = window.setTimeout(() => controller.abort(), timeoutMs);
 
   try {
     return await fetch(url, {
-      ...options,
+      ...fetchOptions,
       signal: controller.signal,
     });
   } finally {
     window.clearTimeout(timeout);
+  }
+}
+
+const providerMatchAliases = {
+  openai: ["openai", "gpt"],
+  anthropic: ["anthropic", "claude"],
+  google: ["google", "gemini"],
+  deepseek: ["deepseek"],
+  xai: ["x-ai", "xai", "grok"],
+  mistral: ["mistral"],
+  cohere: ["cohere", "command"],
+  meta: ["meta", "llama"],
+  alibaba: ["alibaba", "qwen", "dashscope"],
+  baidu: ["baidu", "ernie", "qianfan"],
+  moonshot: ["moonshot", "kimi"],
+  zhipu: ["zhipu", "glm"],
+  openrouter: ["openrouter"],
+  perplexity: ["perplexity", "sonar"],
+  together: ["together"],
+  groq: ["groq"],
+  fireworks: ["fireworks"],
+  replicate: ["replicate"],
+  huggingface: ["huggingface", "hugging face"],
+  "azure-openai": ["azure"],
+  "vertex-ai": ["vertex"],
+  nvidia: ["nvidia", "nim"],
+  ai21: ["ai21", "jamba"],
+  stability: ["stability"],
+  runway: ["runway"],
+  minimax: ["minimax"],
+  bytedance: ["bytedance", "doubao", "volcengine"],
+  tencent: ["tencent", "hunyuan"],
+  baichuan: ["baichuan"],
+};
+
+function currentTimestamp() {
+  return new Date().toLocaleString(state.language === "zh" ? "zh-TW" : "en-US", {
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
+function scoreProvidersFromOpenRouterModels(models) {
+  const scores = Object.fromEntries(curatedProviders.map((provider) => [provider.id, 0]));
+
+  for (const model of models) {
+    const searchable = `${model.id || ""} ${model.name || ""}`.toLowerCase();
+    for (const [providerId, aliases] of Object.entries(providerMatchAliases)) {
+      if (aliases.some((alias) => searchable.includes(alias))) {
+        scores[providerId] += 1;
+      }
+    }
+  }
+
+  return [...curatedProviders]
+    .map((provider) => ({
+      ...provider,
+      liveModelMatches: scores[provider.id] || 0,
+    }))
+    .sort((a, b) => b.liveModelMatches - a.liveModelMatches || a.rank - b.rank)
+    .map((provider, index) => ({
+      ...provider,
+      rank: index + 1,
+    }));
+}
+
+async function loadPublicProviderCatalog() {
+  try {
+    const response = await fetchWithTimeout("https://openrouter.ai/api/v1/models", {
+      cache: "no-store",
+      timeoutMs: 3500,
+    });
+    if (!response.ok) {
+      throw new Error("OpenRouter catalog is unavailable.");
+    }
+
+    const payload = await response.json();
+    const models = Array.isArray(payload.data) ? payload.data : [];
+    if (models.length === 0) {
+      throw new Error("OpenRouter catalog returned no models.");
+    }
+
+    state.providers = scoreProvidersFromOpenRouterModels(models);
+    state.catalogSource = "openrouter";
+    state.catalogModelCount = models.length;
+    state.catalogUpdatedAt = currentTimestamp();
+  } catch {
+    state.providers = curatedProviders;
+    state.catalogSource = "curated";
+    state.catalogModelCount = 0;
+    state.catalogUpdatedAt = "2026-07-05";
   }
 }
 
@@ -518,6 +635,10 @@ function bindEvents() {
   });
 
   refreshButton.addEventListener("click", async () => {
+    await loadPublicProviderCatalog();
+    clearProviderSelection();
+    renderProviders();
+    renderStaticText();
     await checkHelper();
     await scanKeys();
   });
@@ -571,6 +692,7 @@ function bindEvents() {
 
 async function init() {
   state.providerLimit = Number(providerCountSelect.value);
+  await loadPublicProviderCatalog();
   renderStaticText();
   renderProviders();
   clearProviderSelection();
