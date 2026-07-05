@@ -142,6 +142,31 @@ h1 {
   grid-column: 1 / -1;
 }
 
+.provider-count-control {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  align-self: start;
+  width: fit-content;
+  min-height: 42px;
+  padding: 8px 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fbfcfe;
+  color: var(--muted);
+  font-size: 0.9rem;
+  font-weight: 700;
+}
+
+.provider-count-control select {
+  min-height: 30px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #ffffff;
+  color: var(--text);
+  padding: 0 10px;
+}
+
 .field-label {
   display: inline-block;
   color: var(--muted);
@@ -158,6 +183,7 @@ h1 {
 }
 
 .provider-select {
+  grid-column: 1;
   min-height: 210px;
   width: 100%;
   border: 1px solid var(--line);
@@ -172,6 +198,8 @@ h1 {
 }
 
 .toolbar-actions {
+  grid-column: 2;
+  grid-row: 2 / span 2;
   display: flex;
   flex-direction: column;
   gap: 10px;
@@ -332,6 +360,12 @@ code {
 
   .helper-status {
     width: 100%;
+  }
+
+  .provider-select,
+  .toolbar-actions {
+    grid-column: auto;
+    grid-row: auto;
   }
 
   .toolbar-actions {

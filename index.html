@@ -33,6 +33,14 @@
           <label class="field-label" id="providerLabel" for="providerSelect">供應商</label>
           <p class="provider-help" id="providerHelp"></p>
         </div>
+        <label class="provider-count-control" for="providerCountSelect">
+          <span id="providerCountLabel">供應商數量</span>
+          <select id="providerCountSelect" aria-label="供應商數量">
+            <option value="12" selected>12</option>
+            <option value="24">24</option>
+            <option value="50">50</option>
+          </select>
+        </label>
         <select id="providerSelect" class="provider-select" multiple size="8"></select>
         <div class="toolbar-actions">
           <button id="selectTopButton" type="button">選取精選 12 家</button>
@@ -61,6 +69,6 @@
       </section>
     </main>
 
-    <script type="module" src="./src/app.js?v=20260705-local-helper"></script>
+    <script type="module" src="./src/app.js?v=20260705-provider-count"></script>
   </body>
 </html>

@@ -5,6 +5,8 @@ const eyebrowText = document.querySelector("#eyebrowText");
 const languageLabel = document.querySelector("#languageLabel");
 const languageSelect = document.querySelector("#languageSelect");
 const providerSelect = document.querySelector("#providerSelect");
+const providerCountSelect = document.querySelector("#providerCountSelect");
+const providerCountLabel = document.querySelector("#providerCountLabel");
 const providerLabel = document.querySelector("#providerLabel");
 const providerHelp = document.querySelector("#providerHelp");
 const statusRows = document.querySelector("#statusRows");
@@ -24,6 +26,7 @@ const actionHeader = document.querySelector("#actionHeader");
 const state = {
   language: "zh",
   providers: curatedProviders,
+  providerLimit: 12,
   catalogSource: "curated",
   helperConnected: false,
   scanResults: {},
@@ -38,9 +41,10 @@ const messages = {
     languageLabel: "介面語言",
     toolbarAria: "供應商控制",
     providerLabel: "供應商",
+    providerCountLabel: "供應商數量",
     providerHelp:
-      "12 家資料來源：依主流 LLM API 供應商（OpenAI、Anthropic Claude、Google Gemini）與常見環境變數命名整理，依內建 rank 排序；更新時間：2026-07-05。",
-    selectTop: "選取精選 12 家",
+      "{count} 家資料來源：依主流 LLM API 供應商（OpenAI、Anthropic Claude、Google Gemini）與常見環境變數命名整理，依內建 rank 排序；更新時間：2026-07-05。",
+    selectTop: "選取目前 {count} 家",
     clear: "清除",
     refresh: "重新掃描",
     statusPanelAria: "已選供應商 API key 狀態",
@@ -81,9 +85,10 @@ const messages = {
     languageLabel: "Language",
     toolbarAria: "Provider controls",
     providerLabel: "Providers",
+    providerCountLabel: "Provider count",
     providerHelp:
-      "Source for the 12 providers: a built-in curated list in src/providers.js, mapped from mainstream LLM API providers to common environment variable names. Display logic: providers are sorted by built-in rank, selected providers expand to env vars, only local environment variables are scanned, and no model provider is contacted. Updated: 2026-07-05.",
-    selectTop: "Select curated 12",
+      "Source for the {count} providers: a built-in curated list in src/providers.js, mapped from mainstream LLM API providers including OpenAI, Anthropic Claude, and Google Gemini to common environment variable names. Display logic: providers are sorted by built-in rank. Updated: 2026-07-05.",
+    selectTop: "Select current {count}",
     clear: "Clear",
     refresh: "Refresh scan",
     statusPanelAria: "Selected provider API key status",
@@ -123,8 +128,22 @@ function t(key) {
   return messages[state.language][key];
 }
 
+function formatMessage(key, values = {}) {
+  return Object.entries(values).reduce(
+    (message, [name, value]) => message.replaceAll(`{${name}}`, value),
+    t(key),
+  );
+}
+
 function catalogText() {
   return t("catalogCurated");
+}
+
+function visibleProviders() {
+  return state.providers
+    .slice()
+    .sort((a, b) => a.rank - b.rank)
+    .slice(0, state.providerLimit);
 }
 
 function statusText(status) {
@@ -158,7 +177,7 @@ function buildProfileAppendCommand(envVar, value) {
 
 function getSelectedProviders() {
   const selectedIds = Array.from(providerSelect.selectedOptions).map((option) => option.value);
-  return state.providers.filter((provider) => selectedIds.includes(provider.id));
+  return visibleProviders().filter((provider) => selectedIds.includes(provider.id));
 }
 
 function getSelectedEnvVars() {
@@ -190,9 +209,11 @@ function renderStaticText() {
   languageSelect.setAttribute("aria-label", t("languageLabel"));
   toolbarSection.setAttribute("aria-label", t("toolbarAria"));
   statusPanel.setAttribute("aria-label", t("statusPanelAria"));
+  providerCountLabel.textContent = t("providerCountLabel");
+  providerCountSelect.setAttribute("aria-label", t("providerCountLabel"));
   providerLabel.textContent = t("providerLabel");
-  providerHelp.textContent = t("providerHelp");
-  selectTopButton.textContent = t("selectTop");
+  providerHelp.textContent = formatMessage("providerHelp", { count: state.providerLimit });
+  selectTopButton.textContent = formatMessage("selectTop", { count: state.providerLimit });
   clearButton.textContent = t("clear");
   refreshButton.textContent = t("refresh");
   providerHeader.textContent = t("providerHeader");
@@ -206,7 +227,7 @@ function renderStaticText() {
 function renderProviders() {
   providerSelect.replaceChildren();
 
-  for (const provider of state.providers) {
+  for (const provider of visibleProviders()) {
     const option = document.createElement("option");
     option.value = provider.id;
     option.textContent = `${provider.rank}. ${provider.name}`;
@@ -424,6 +445,14 @@ function bindEvents() {
     renderRows();
   });
 
+  providerCountSelect.addEventListener("change", () => {
+    state.providerLimit = Number(providerCountSelect.value);
+    clearProviderSelection();
+    renderStaticText();
+    renderProviders();
+    renderRows();
+  });
+
   statusRows.addEventListener("input", (event) => {
     const envVar = event.target.dataset.envInput;
     if (envVar) {
@@ -458,6 +487,7 @@ function bindEvents() {
 }
 
 async function init() {
+  state.providerLimit = Number(providerCountSelect.value);
   renderStaticText();
   renderProviders();
   clearProviderSelection();
