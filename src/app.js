@@ -39,7 +39,7 @@ const messages = {
     toolbarAria: "供應商控制",
     providerLabel: "供應商",
     providerHelp:
-      "12 家資料來源：內建於 src/providers.js 的精選清單，依主流 LLM API 供應商與常見環境變數命名整理；呈現邏輯：依內建 rank 排序，多選後展開 env var，只掃描本機環境變數，不連接任何大模型；更新時間：2026-07-05。",
+      "12 家資料來源：依主流 LLM API 供應商（OpenAI、Anthropic Claude、Google Gemini）與常見環境變數命名整理，依內建 rank 排序；更新時間：2026-07-05。",
     selectTop: "選取精選 12 家",
     clear: "清除",
     refresh: "重新掃描",
