@@ -54,9 +54,9 @@ const messages = {
     pagesMode:
       "GitHub Pages 模式已啟用。瀏覽器安全限制會阻擋本機掃描，因此此模式會產生可複製的 shell 指令。",
     catalogLabel: "Catalog",
-    catalogOpenRouter: "OpenRouter 即時模型 catalog",
-    catalogCurated: "內建精選 fallback",
+    catalogCurated: "內建精選清單，不連接任何大模型",
     sentenceEnd: "。",
+    doubleClickHint: "雙擊供應商可顯示或隱藏已找到的 API key",
     statusFound: "已找到",
     statusMissing: "缺少",
     statusHelperRequired: "需要 helper",
@@ -94,9 +94,9 @@ const messages = {
     pagesMode:
       "GitHub Pages mode is active. Browser security blocks local scanning, so the app will generate copyable shell commands instead.",
     catalogLabel: "Catalog",
-    catalogOpenRouter: "OpenRouter live model catalog",
-    catalogCurated: "Curated fallback",
+    catalogCurated: "Built-in curated list; no model providers are contacted",
     sentenceEnd: ".",
+    doubleClickHint: "Double-click a provider to show or hide found API keys",
     statusFound: "found",
     statusMissing: "missing",
     statusHelperRequired: "helper required",
@@ -119,7 +119,7 @@ function t(key) {
 }
 
 function catalogText() {
-  return state.catalogSource === "openrouter" ? t("catalogOpenRouter") : t("catalogCurated");
+  return t("catalogCurated");
 }
 
 function statusText(status) {
@@ -127,21 +127,6 @@ function statusText(status) {
   if (status === "missing") return t("statusMissing");
   return t("statusUnknown");
 }
-
-const providerSignals = {
-  openai: ["openai", "gpt"],
-  anthropic: ["anthropic", "claude"],
-  google: ["google", "gemini"],
-  deepseek: ["deepseek"],
-  xai: ["x-ai", "xai", "grok"],
-  mistral: ["mistral"],
-  cohere: ["cohere", "command"],
-  meta: ["meta", "llama"],
-  alibaba: ["alibaba", "qwen", "dashscope"],
-  baidu: ["baidu", "ernie", "qianfan"],
-  moonshot: ["moonshot", "kimi"],
-  zhipu: ["zhipu", "glm"],
-};
 
 function maskKey(value) {
   if (!value) return "";
@@ -224,47 +209,6 @@ function renderProviders() {
   }
 }
 
-async function loadProviderCatalog() {
-  const controller = new AbortController();
-  const timeout = window.setTimeout(() => controller.abort(), 2500);
-
-  try {
-    const response = await fetch("https://openrouter.ai/api/v1/models", {
-      cache: "no-store",
-      signal: controller.signal,
-    });
-    if (!response.ok) {
-      throw new Error("OpenRouter catalog is unavailable.");
-    }
-
-    const payload = await response.json();
-    const models = Array.isArray(payload.data) ? payload.data : [];
-    const scores = Object.fromEntries(curatedProviders.map((provider) => [provider.id, 0]));
-
-    for (const model of models) {
-      const searchable = `${model.id || ""} ${model.name || ""}`.toLowerCase();
-      for (const [providerId, signals] of Object.entries(providerSignals)) {
-        if (signals.some((signal) => searchable.includes(signal))) {
-          scores[providerId] += 1;
-        }
-      }
-    }
-
-    state.providers = [...curatedProviders]
-      .sort((a, b) => scores[b.id] - scores[a.id] || a.rank - b.rank)
-      .map((provider, index) => ({
-        ...provider,
-        rank: index + 1,
-      }));
-    state.catalogSource = "openrouter";
-  } catch {
-    state.providers = curatedProviders;
-    state.catalogSource = "curated";
-  } finally {
-    window.clearTimeout(timeout);
-  }
-}
-
 function renderRows() {
   const providers = getSelectedProviders();
 
@@ -281,7 +225,10 @@ function renderRows() {
       const statusClass = state.helperConnected ? result.status : "unknown";
 
       const row = document.createElement("tr");
+      row.dataset.providerId = provider.id;
       const providerCell = document.createElement("td");
+      providerCell.className = "provider-cell";
+      providerCell.title = t("doubleClickHint");
       const providerName = document.createElement("strong");
       providerName.textContent = provider.name;
       providerCell.append(providerName);
@@ -341,6 +288,30 @@ function renderRows() {
     row.append(cell);
     statusRows.append(row);
   }
+}
+
+function toggleProviderKeys(providerId) {
+  const provider = state.providers.find((candidate) => candidate.id === providerId);
+  if (!provider) {
+    return;
+  }
+
+  const foundEnvVars = provider.envVars.filter(
+    (envVar) => state.scanResults[envVar]?.status === "found",
+  );
+  if (foundEnvVars.length === 0) {
+    return;
+  }
+
+  const shouldShow = foundEnvVars.some((envVar) => !state.visibleKeys.has(envVar));
+  for (const envVar of foundEnvVars) {
+    if (shouldShow) {
+      state.visibleKeys.add(envVar);
+    } else {
+      state.visibleKeys.delete(envVar);
+    }
+  }
+  renderRows();
 }
 
 async function checkHelper() {
@@ -466,11 +437,17 @@ function bindEvents() {
       saveKey(saveEnvVar).catch((error) => alert(error.message));
     }
   });
+
+  statusRows.addEventListener("dblclick", (event) => {
+    const row = event.target.closest("tr[data-provider-id]");
+    if (row) {
+      toggleProviderKeys(row.dataset.providerId);
+    }
+  });
 }
 
 async function init() {
   renderStaticText();
-  await loadProviderCatalog();
   renderProviders();
   bindEvents();
   await checkHelper();

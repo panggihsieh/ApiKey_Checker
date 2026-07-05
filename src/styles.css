@@ -237,6 +237,21 @@ code {
   color: #243746;
 }
 
+.provider-cell {
+  cursor: pointer;
+}
+
+.provider-cell strong {
+  text-decoration-color: transparent;
+  text-decoration-line: underline;
+  text-decoration-thickness: 2px;
+  text-underline-offset: 4px;
+}
+
+.provider-cell:hover strong {
+  text-decoration-color: var(--accent);
+}
+
 .pill {
   display: inline-flex;
   align-items: center;
