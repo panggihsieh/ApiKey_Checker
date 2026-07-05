@@ -2,6 +2,25 @@
 
 const { spawn } = require("child_process");
 
+const webUrl = `http://localhost:${process.env.API_KEY_CHECKER_WEB_PORT || 5173}`;
+let openedWebapp = false;
+
+function openWebapp() {
+  if (openedWebapp) {
+    return;
+  }
+
+  openedWebapp = true;
+  const command =
+    process.platform === "darwin" ? "open" : process.platform === "win32" ? "cmd" : "xdg-open";
+  const args = process.platform === "win32" ? ["/c", "start", "", webUrl] : [webUrl];
+  const opener = spawn(command, args, {
+    detached: true,
+    stdio: "ignore",
+  });
+  opener.unref();
+}
+
 const processes = [
   ["web", "server/static.js"],
   ["helper", "server/helper.js"],
@@ -14,7 +33,11 @@ const children = processes.map(([name, script]) => {
   });
 
   child.stdout.on("data", (chunk) => {
-    process.stdout.write(`[${name}] ${chunk}`);
+    const output = chunk.toString();
+    process.stdout.write(`[${name}] ${output}`);
+    if (name === "web" && output.includes("API Key Checker webapp listening")) {
+      openWebapp();
+    }
   });
 
   child.stderr.on("data", (chunk) => {
