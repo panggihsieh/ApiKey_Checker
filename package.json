@@ -13,8 +13,10 @@
     "helper": "node server/helper.js",
     "check": "node --check src/app.js && node --check src/providers.js && node --check server/helper.js && node --check server/static.js && node --check scripts/local.js && node --check scripts/build-msi-wixl.js && node --check electron/main.js",
     "dist:mac": "electron-builder --mac dmg",
+    "dist:win:exe": "electron-builder --win nsis --x64",
+    "dist:win:msi": "electron-builder --win dir --x64 --publish never && node scripts/build-msi-wixl.js",
     "dist:win": "electron-builder --win nsis msi --x64",
-    "dist:win:msi-local": "npx electron-builder --win dir --x64 && node scripts/build-msi-wixl.js",
+    "dist:win:msi-local": "npm run dist:win:msi",
     "dist": "electron-builder --mac dmg --win nsis msi --x64"
   },
   "build": {

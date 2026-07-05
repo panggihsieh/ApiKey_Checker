@@ -42,10 +42,9 @@ jobs:
             dist/*.dmg.blockmap
             dist/latest-mac.yml
 
-  windows:
-    name: Build Windows MSI and EXE
+  windows-exe:
+    name: Build Windows EXE
     runs-on: windows-2022
-    continue-on-error: true
 
     steps:
       - name: Checkout
@@ -63,23 +62,58 @@ jobs:
       - name: Check syntax
         run: npm run check
 
-      - name: Build MSI and NSIS
-        run: npm run dist:win -- --publish never
+      - name: Build NSIS EXE
+        run: npm run dist:win:exe -- --publish never
 
-      - name: Upload Windows installers
+      - name: Upload Windows EXE
         uses: actions/upload-artifact@v4
         with:
-          name: api-key-checker-windows
+          name: api-key-checker-windows-exe
           path: |
-            dist/*.msi
             dist/*.exe
             dist/*.blockmap
             dist/latest.yml
+
+  windows-msi:
+    name: Build Windows MSI
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Install system dependencies
+        run: sudo apt-get update && sudo apt-get install -y msitools
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Check syntax
+        run: npm run check
+
+      - name: Build MSI
+        run: npm run dist:win:msi -- --publish never
+
+      - name: Upload Windows MSI
+        uses: actions/upload-artifact@v4
+        with:
+          name: api-key-checker-windows-msi
+          path: |
+            dist/*.msi
+            dist/wixl-project.wxs
 
   release:
     name: Publish GitHub release
     needs:
       - mac
+      - windows-exe
+      - windows-msi
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/')
 
@@ -91,6 +125,18 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: api-key-checker-macos
+          path: release-assets
+
+      - name: Download Windows EXE artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: api-key-checker-windows-exe
+          path: release-assets
+
+      - name: Download Windows MSI artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: api-key-checker-windows-msi
           path: release-assets
 
       - name: Create or update release
