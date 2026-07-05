@@ -1,22 +1,132 @@
 import { curatedProviders } from "./providers.js";
 
 const helperBaseUrl = "http://localhost:8787";
+const eyebrowText = document.querySelector("#eyebrowText");
+const languageLabel = document.querySelector("#languageLabel");
+const languageSelect = document.querySelector("#languageSelect");
 const providerSelect = document.querySelector("#providerSelect");
+const providerLabel = document.querySelector("#providerLabel");
 const statusRows = document.querySelector("#statusRows");
 const helperStatus = document.querySelector("#helperStatus");
 const modeNotice = document.querySelector("#modeNotice");
+const toolbarSection = document.querySelector("#toolbarSection");
+const statusPanel = document.querySelector("#statusPanel");
 const selectTopButton = document.querySelector("#selectTopButton");
 const clearButton = document.querySelector("#clearButton");
 const refreshButton = document.querySelector("#refreshButton");
+const providerHeader = document.querySelector("#providerHeader");
+const envHeader = document.querySelector("#envHeader");
+const statusHeader = document.querySelector("#statusHeader");
+const valueHeader = document.querySelector("#valueHeader");
+const actionHeader = document.querySelector("#actionHeader");
 
 const state = {
+  language: "zh",
   providers: curatedProviders,
-  catalogSource: "Curated fallback",
+  catalogSource: "curated",
   helperConnected: false,
   scanResults: {},
   visibleKeys: new Set(),
   inputValues: {},
 };
+
+const messages = {
+  zh: {
+    documentTitle: "API Key Checker",
+    eyebrow: "本機 + GitHub Pages 可用",
+    languageLabel: "介面語言",
+    toolbarAria: "供應商控制",
+    providerLabel: "供應商",
+    selectTop: "選取精選 12 家",
+    clear: "清除",
+    refresh: "重新掃描",
+    statusPanelAria: "已選供應商 API key 狀態",
+    providerHeader: "供應商",
+    envHeader: "環境變數",
+    statusHeader: "狀態",
+    valueHeader: "值",
+    actionHeader: "操作",
+    checkingHelper: "正在檢查 helper...",
+    helperConnected: "本機 helper：已連線",
+    helperDisconnected: "本機 helper：未連線",
+    localMode:
+      "本機 helper 模式已啟用。你可以掃描並儲存這台電腦上的 API key。",
+    pagesMode:
+      "GitHub Pages 模式已啟用。瀏覽器安全限制會阻擋本機掃描，因此此模式會產生可複製的 shell 指令。",
+    catalogLabel: "Catalog",
+    catalogOpenRouter: "OpenRouter 即時模型 catalog",
+    catalogCurated: "內建精選 fallback",
+    sentenceEnd: "。",
+    statusFound: "已找到",
+    statusMissing: "缺少",
+    statusHelperRequired: "需要 helper",
+    statusUnknown: "未知",
+    enterPlaceholder: "輸入",
+    show: "顯示",
+    hide: "隱藏",
+    save: "儲存",
+    copyCommand: "複製指令",
+    emptyState: "請至少選擇一個供應商來檢查 API key 環境變數。",
+    enterValueFirst: "請先輸入",
+    copiedSetupCommand: "已複製設定指令：",
+    unableToScan: "無法掃描 API key。",
+    unableToSave: "無法儲存",
+  },
+  en: {
+    documentTitle: "API Key Checker",
+    eyebrow: "Local + GitHub Pages ready",
+    languageLabel: "Language",
+    toolbarAria: "Provider controls",
+    providerLabel: "Providers",
+    selectTop: "Select curated 12",
+    clear: "Clear",
+    refresh: "Refresh scan",
+    statusPanelAria: "Selected provider API key status",
+    providerHeader: "Provider",
+    envHeader: "Environment variable",
+    statusHeader: "Status",
+    valueHeader: "Value",
+    actionHeader: "Action",
+    checkingHelper: "Checking helper...",
+    helperConnected: "Local helper: Connected",
+    helperDisconnected: "Local helper: Not connected",
+    localMode: "Local helper mode is active. You can scan and save API keys on this machine.",
+    pagesMode:
+      "GitHub Pages mode is active. Browser security blocks local scanning, so the app will generate copyable shell commands instead.",
+    catalogLabel: "Catalog",
+    catalogOpenRouter: "OpenRouter live model catalog",
+    catalogCurated: "Curated fallback",
+    sentenceEnd: ".",
+    statusFound: "found",
+    statusMissing: "missing",
+    statusHelperRequired: "helper required",
+    statusUnknown: "unknown",
+    enterPlaceholder: "Enter",
+    show: "Show",
+    hide: "Hide",
+    save: "Save",
+    copyCommand: "Copy command",
+    emptyState: "Select at least one provider to inspect API key variables.",
+    enterValueFirst: "Enter a value for",
+    copiedSetupCommand: "Copied setup command for",
+    unableToScan: "Unable to scan API keys.",
+    unableToSave: "Unable to save",
+  },
+};
+
+function t(key) {
+  return messages[state.language][key];
+}
+
+function catalogText() {
+  return state.catalogSource === "openrouter" ? t("catalogOpenRouter") : t("catalogCurated");
+}
+
+function statusText(status) {
+  if (status === "found") return t("statusFound");
+  if (status === "missing") return t("statusMissing");
+  return t("statusUnknown");
+}
 
 const providerSignals = {
   openai: ["openai", "gpt"],
@@ -69,13 +179,37 @@ function setHelperStatus(connected) {
   state.helperConnected = connected;
   helperStatus.classList.toggle("connected", connected);
   helperStatus.classList.toggle("disconnected", !connected);
-  helperStatus.innerHTML = `<span class="status-dot"></span><span>Local helper: ${
-    connected ? "Connected" : "Not connected"
-  }</span>`;
-  modeNotice.textContent = connected
-    ? "Local helper mode is active. You can scan and save API keys on this machine."
-    : "GitHub Pages mode is active. Browser security blocks local scanning, so the app will generate copyable shell commands instead.";
-  modeNotice.textContent += ` Catalog: ${state.catalogSource}.`;
+  helperStatus.replaceChildren();
+
+  const dot = document.createElement("span");
+  dot.className = "status-dot";
+  const label = document.createElement("span");
+  label.textContent = connected ? t("helperConnected") : t("helperDisconnected");
+  helperStatus.append(dot, label);
+
+  modeNotice.textContent = `${connected ? t("localMode") : t("pagesMode")} ${t(
+    "catalogLabel",
+  )}: ${catalogText()}${t("sentenceEnd")}`;
+}
+
+function renderStaticText() {
+  document.documentElement.lang = state.language === "zh" ? "zh-Hant" : "en";
+  document.title = t("documentTitle");
+  eyebrowText.textContent = t("eyebrow");
+  languageLabel.textContent = t("languageLabel");
+  languageSelect.setAttribute("aria-label", t("languageLabel"));
+  toolbarSection.setAttribute("aria-label", t("toolbarAria"));
+  statusPanel.setAttribute("aria-label", t("statusPanelAria"));
+  providerLabel.textContent = t("providerLabel");
+  selectTopButton.textContent = t("selectTop");
+  clearButton.textContent = t("clear");
+  refreshButton.textContent = t("refresh");
+  providerHeader.textContent = t("providerHeader");
+  envHeader.textContent = t("envHeader");
+  statusHeader.textContent = t("statusHeader");
+  valueHeader.textContent = t("valueHeader");
+  actionHeader.textContent = t("actionHeader");
+  setHelperStatus(state.helperConnected);
 }
 
 function renderProviders() {
@@ -122,10 +256,10 @@ async function loadProviderCatalog() {
         ...provider,
         rank: index + 1,
       }));
-    state.catalogSource = "OpenRouter live model catalog";
+    state.catalogSource = "openrouter";
   } catch {
     state.providers = curatedProviders;
-    state.catalogSource = "Curated fallback";
+    state.catalogSource = "curated";
   } finally {
     window.clearTimeout(timeout);
   }
@@ -143,7 +277,7 @@ function renderRows() {
       const isFound = result.status === "found";
       const isVisible = state.visibleKeys.has(envVar);
       const shownValue = isFound ? (isVisible ? result.value : maskKey(result.value)) : "";
-      const statusLabel = state.helperConnected ? result.status : "helper required";
+      const statusLabel = state.helperConnected ? statusText(result.status) : t("statusHelperRequired");
       const statusClass = state.helperConnected ? result.status : "unknown";
 
       const row = document.createElement("tr");
@@ -175,7 +309,7 @@ function renderRows() {
         input.dataset.envInput = envVar;
         input.type = "password";
         input.autocomplete = "off";
-        input.placeholder = `Enter ${envVar}`;
+        input.placeholder = `${t("enterPlaceholder")} ${envVar}`;
         input.value = inputValue;
         valueCell.append(input);
       }
@@ -186,10 +320,10 @@ function renderRows() {
       if (isFound) {
         actionButton.className = "secondary";
         actionButton.dataset.toggleKey = envVar;
-        actionButton.textContent = isVisible ? "Hide" : "Show";
+        actionButton.textContent = isVisible ? t("hide") : t("show");
       } else {
         actionButton.dataset.saveKey = envVar;
-        actionButton.textContent = state.helperConnected ? "Save" : "Copy command";
+        actionButton.textContent = state.helperConnected ? t("save") : t("copyCommand");
       }
       actionCell.append(actionButton);
 
@@ -203,7 +337,7 @@ function renderRows() {
     const cell = document.createElement("td");
     cell.colSpan = 5;
     cell.className = "empty-state";
-    cell.textContent = "Select at least one provider to inspect API key variables.";
+    cell.textContent = t("emptyState");
     row.append(cell);
     statusRows.append(row);
   }
@@ -239,7 +373,7 @@ async function scanKeys() {
   });
 
   if (!response.ok) {
-    throw new Error("Unable to scan API keys.");
+    throw new Error(t("unableToScan"));
   }
 
   state.scanResults = await response.json();
@@ -249,14 +383,14 @@ async function scanKeys() {
 async function saveKey(envVar) {
   const value = state.inputValues[envVar] || "";
   if (!value.trim()) {
-    alert(`Enter a value for ${envVar} first.`);
+    alert(`${t("enterValueFirst")} ${envVar}。`);
     return;
   }
 
   if (!state.helperConnected) {
     const command = buildProfileAppendCommand(envVar, value);
     await navigator.clipboard.writeText(command);
-    alert(`Copied setup command for ${envVar}.`);
+    alert(`${t("copiedSetupCommand")} ${envVar}。`);
     return;
   }
 
@@ -268,7 +402,7 @@ async function saveKey(envVar) {
 
   if (!response.ok) {
     const message = await response.text();
-    throw new Error(message || `Unable to save ${envVar}.`);
+    throw new Error(message || `${t("unableToSave")} ${envVar}.`);
   }
 
   state.inputValues[envVar] = "";
@@ -302,6 +436,12 @@ function bindEvents() {
     await scanKeys();
   });
 
+  languageSelect.addEventListener("change", () => {
+    state.language = languageSelect.value;
+    renderStaticText();
+    renderRows();
+  });
+
   statusRows.addEventListener("input", (event) => {
     const envVar = event.target.dataset.envInput;
     if (envVar) {
@@ -329,6 +469,7 @@ function bindEvents() {
 }
 
 async function init() {
+  renderStaticText();
   await loadProviderCatalog();
   renderProviders();
   bindEvents();

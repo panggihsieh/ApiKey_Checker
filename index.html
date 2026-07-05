@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en">
+<html lang="zh-Hant">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -10,37 +10,46 @@
     <main class="app-shell">
       <header class="app-header">
         <div>
-          <p class="eyebrow">Local + GitHub Pages ready</p>
+          <p class="eyebrow" id="eyebrowText">本機 + GitHub Pages 可用</p>
           <h1>API Key Checker</h1>
         </div>
-        <div class="helper-status" id="helperStatus">
-          <span class="status-dot"></span>
-          <span>Checking helper...</span>
+        <div class="header-controls">
+          <label class="language-control" for="languageSelect">
+            <span id="languageLabel">介面語言</span>
+            <select id="languageSelect" aria-label="介面語言">
+              <option value="zh" selected>中文</option>
+              <option value="en">English</option>
+            </select>
+          </label>
+          <div class="helper-status" id="helperStatus">
+            <span class="status-dot"></span>
+            <span>正在檢查 helper...</span>
+          </div>
         </div>
       </header>
 
-      <section class="toolbar" aria-label="Provider controls">
-        <label class="field-label" for="providerSelect">Providers</label>
+      <section class="toolbar" id="toolbarSection" aria-label="供應商控制">
+        <label class="field-label" id="providerLabel" for="providerSelect">供應商</label>
         <select id="providerSelect" class="provider-select" multiple size="8"></select>
         <div class="toolbar-actions">
-          <button id="selectTopButton" type="button">Select curated 12</button>
-          <button id="clearButton" type="button" class="secondary">Clear</button>
-          <button id="refreshButton" type="button" class="secondary">Refresh scan</button>
+          <button id="selectTopButton" type="button">選取精選 12 家</button>
+          <button id="clearButton" type="button" class="secondary">清除</button>
+          <button id="refreshButton" type="button" class="secondary">重新掃描</button>
         </div>
       </section>
 
       <section class="notice" id="modeNotice"></section>
 
-      <section class="status-panel" aria-label="Selected provider API key status">
+      <section class="status-panel" id="statusPanel" aria-label="已選供應商 API key 狀態">
         <div class="table-wrap">
           <table>
             <thead>
               <tr>
-                <th>Provider</th>
-                <th>Environment variable</th>
-                <th>Status</th>
-                <th>Value</th>
-                <th>Action</th>
+                <th id="providerHeader">供應商</th>
+                <th id="envHeader">環境變數</th>
+                <th id="statusHeader">狀態</th>
+                <th id="valueHeader">值</th>
+                <th id="actionHeader">操作</th>
               </tr>
             </thead>
             <tbody id="statusRows"></tbody>

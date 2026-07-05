@@ -47,6 +47,38 @@ select {
   margin-bottom: 24px;
 }
 
+.header-controls {
+  display: flex;
+  align-items: stretch;
+  gap: 12px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.language-control {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 46px;
+  padding: 8px 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel);
+  color: var(--muted);
+  font-size: 0.9rem;
+  font-weight: 700;
+  box-shadow: var(--shadow);
+}
+
+.language-control select {
+  min-height: 32px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fbfcfe;
+  color: var(--text);
+  padding: 0 10px;
+}
+
 .eyebrow {
   margin: 0 0 6px;
   color: var(--accent);
@@ -260,6 +292,15 @@ code {
     grid-template-columns: 1fr;
     flex-direction: column;
     align-items: stretch;
+  }
+
+  .header-controls {
+    justify-content: stretch;
+  }
+
+  .language-control {
+    justify-content: space-between;
+    width: 100%;
   }
 
   .helper-status {
