@@ -9,13 +9,20 @@ const port = Number(process.env.API_KEY_CHECKER_HELPER_PORT || 8787);
 const shellProfile = process.env.API_KEY_CHECKER_PROFILE || path.join(os.homedir(), ".zshrc");
 const envVarPattern = /^[A-Z][A-Z0-9_]*$/;
 
-function sendJson(response, statusCode, payload) {
-  const body = JSON.stringify(payload);
-  response.writeHead(statusCode, {
+function corsHeaders(contentType) {
+  return {
     "Access-Control-Allow-Origin": "*",
     "Access-Control-Allow-Headers": "Content-Type",
     "Access-Control-Allow-Methods": "GET,POST,OPTIONS",
-    "Content-Type": "application/json; charset=utf-8",
+    "Access-Control-Allow-Private-Network": "true",
+    "Content-Type": contentType,
+  };
+}
+
+function sendJson(response, statusCode, payload) {
+  const body = JSON.stringify(payload);
+  response.writeHead(statusCode, {
+    ...corsHeaders("application/json; charset=utf-8"),
     "Content-Length": Buffer.byteLength(body),
   });
   response.end(body);
@@ -23,10 +30,7 @@ function sendJson(response, statusCode, payload) {
 
 function sendText(response, statusCode, message) {
   response.writeHead(statusCode, {
-    "Access-Control-Allow-Origin": "*",
-    "Access-Control-Allow-Headers": "Content-Type",
-    "Access-Control-Allow-Methods": "GET,POST,OPTIONS",
-    "Content-Type": "text/plain; charset=utf-8",
+    ...corsHeaders("text/plain; charset=utf-8"),
   });
   response.end(message);
 }

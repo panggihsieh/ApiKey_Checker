@@ -1,6 +1,6 @@
 import { curatedProviders } from "./providers.js";
 
-const helperBaseUrl = "http://localhost:8787";
+const helperBaseUrl = "http://127.0.0.1:8787";
 const eyebrowText = document.querySelector("#eyebrowText");
 const languageLabel = document.querySelector("#languageLabel");
 const languageSelect = document.querySelector("#languageSelect");
@@ -210,8 +210,17 @@ function renderProviders() {
     const option = document.createElement("option");
     option.value = provider.id;
     option.textContent = `${provider.rank}. ${provider.name}`;
+    option.selected = false;
     providerSelect.append(option);
   }
+}
+
+function clearProviderSelection() {
+  Array.from(providerSelect.options).forEach((option) => {
+    option.selected = false;
+  });
+  state.scanResults = {};
+  state.visibleKeys.clear();
 }
 
 function renderRows() {
@@ -400,10 +409,7 @@ function bindEvents() {
   });
 
   clearButton.addEventListener("click", () => {
-    Array.from(providerSelect.options).forEach((option) => {
-      option.selected = false;
-    });
-    state.scanResults = {};
+    clearProviderSelection();
     renderRows();
   });
 
@@ -454,6 +460,7 @@ function bindEvents() {
 async function init() {
   renderStaticText();
   renderProviders();
+  clearProviderSelection();
   bindEvents();
   await checkHelper();
   await scanKeys();
