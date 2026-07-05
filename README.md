@@ -84,6 +84,17 @@ MSI `.msi` installer. MSI generation uses WiX tooling, so it is most reliable on
 Windows. Cross-building MSI from macOS can fail if Wine/WiX is unavailable or
 misconfigured.
 
+On Apple Silicon macOS, a local MSI fallback is available after `msitools` is
+installed:
+
+```bash
+brew install msitools
+npm run dist:win:msi-local
+```
+
+This builds the Windows unpacked app with Electron Builder, then creates a
+per-user MSI from `dist/win-unpacked` using native `wixl`.
+
 The macOS build is currently unsigned (`identity: null`) for local distribution.
 For public distribution, configure Apple Developer code signing and notarization.
 
@@ -211,6 +222,16 @@ npm run dist:win
 Windows build 已設定同時產生 NSIS `.exe` 安裝檔與 MSI `.msi` 安裝檔。MSI
 會使用 WiX 工具鏈，因此最可靠的方式是在 Windows 上建置；從 macOS 跨平台建置
 可能會因 Wine/WiX 環境不完整而失敗。
+
+Apple Silicon macOS 可在安裝 `msitools` 後使用本機 MSI fallback：
+
+```bash
+brew install msitools
+npm run dist:win:msi-local
+```
+
+這會先用 Electron Builder 建立 Windows unpacked app，再用 native `wixl`
+從 `dist/win-unpacked` 建立 per-user MSI。
 
 目前 macOS build 是未簽章版本（`identity: null`），適合本機測試或內部使用。
 若要公開發佈，請再設定 Apple Developer 簽章與 notarization。
