@@ -1,6 +1,6 @@
 const assert = require("node:assert/strict");
 const test = require("node:test");
-const { createHelperServer } = require("../server/helper");
+const { createHelperServer, startHelperServer } = require("../server/helper");
 
 function listen(server) {
   return new Promise((resolve, reject) => {
@@ -31,6 +31,29 @@ test("helper rejects requests without the session token", async () => {
     });
 
     assert.equal(response.status, 401);
+  } finally {
+    await close(server);
+  }
+});
+
+test("helper health does not expose local shell profile paths", async () => {
+  const server = createHelperServer({
+    token: "test-token-123456789012345678901234",
+    allowedOrigins: ["http://127.0.0.1:5173"],
+  });
+  const port = await listen(server);
+
+  try {
+    const response = await fetch(`http://127.0.0.1:${port}/health`, {
+      headers: {
+        Origin: "http://127.0.0.1:5173",
+        "X-API-Key-Checker-Token": "test-token-123456789012345678901234",
+      },
+    });
+    const payload = await response.json();
+
+    assert.equal(response.status, 200);
+    assert.deepEqual(payload, { ok: true });
   } finally {
     await close(server);
   }
@@ -138,5 +161,31 @@ test("helper opens terminal only after token and origin checks pass", async () =
     assert.equal(opened, true);
   } finally {
     await close(server);
+  }
+});
+
+test("helper startup logs do not expose the session token", async () => {
+  const token = "test-token-123456789012345678901234";
+  const logs = [];
+  const originalLog = console.log;
+  console.log = (...args) => {
+    logs.push(args.join(" "));
+  };
+
+  let server;
+  try {
+    const started = await startHelperServer({
+      port: 0,
+      token,
+      allowedOrigins: ["http://127.0.0.1:5173"],
+    });
+    server = started.server;
+
+    assert.equal(logs.some((line) => line.includes(token)), false);
+  } finally {
+    console.log = originalLog;
+    if (server) {
+      await close(server);
+    }
   }
 });

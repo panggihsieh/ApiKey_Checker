@@ -5,6 +5,22 @@ const fs = require("fs");
 const path = require("path");
 
 const root = path.resolve(__dirname, "..");
+const securityHeaders = {
+  "Content-Security-Policy": [
+    "default-src 'self'",
+    "base-uri 'none'",
+    "object-src 'none'",
+    "frame-ancestors 'none'",
+    "form-action 'none'",
+    "script-src 'self'",
+    "style-src 'self'",
+    "connect-src 'self' http://127.0.0.1:* http://localhost:*",
+  ].join("; "),
+  "Cross-Origin-Opener-Policy": "same-origin",
+  "Referrer-Policy": "no-referrer",
+  "X-Content-Type-Options": "nosniff",
+  "X-Frame-Options": "DENY",
+};
 
 const contentTypes = {
   ".html": "text/html; charset=utf-8",
@@ -13,9 +29,11 @@ const contentTypes = {
   ".json": "application/json; charset=utf-8",
   ".svg": "image/svg+xml",
 };
+const publicFiles = new Set(["index.html", "src/app.js", "src/providers.js", "src/styles.css"]);
 
 function send(response, statusCode, contentType, body) {
   response.writeHead(statusCode, {
+    ...securityHeaders,
     "Content-Type": contentType,
     "Content-Length": Buffer.byteLength(body),
   });
@@ -27,8 +45,14 @@ function resolveRequestPath(requestUrl) {
   const requestedPath = decodeURIComponent(url.pathname);
   const filePath = requestedPath === "/" ? "/index.html" : requestedPath;
   const resolved = path.resolve(root, `.${filePath}`);
+  const relative = path.relative(root, resolved);
 
-  if (!resolved.startsWith(root)) {
+  if (relative.startsWith("..") || path.isAbsolute(relative)) {
+    return null;
+  }
+
+  const publicPath = relative.split(path.sep).join("/");
+  if (!publicFiles.has(publicPath)) {
     return null;
   }
 

@@ -8,6 +8,8 @@ const os = require("os");
 const path = require("path");
 
 const envVarPattern = /^[A-Z][A-Z0-9_]*$/;
+const maxRequestBodyBytes = 1024 * 128;
+const maxProfileBytes = 1024 * 256;
 const defaultShellProfiles = [
   ".zshrc",
   ".zprofile",
@@ -105,7 +107,7 @@ function readJson(request) {
     let body = "";
     request.on("data", (chunk) => {
       body += chunk;
-      if (body.length > 1024 * 128) {
+      if (Buffer.byteLength(body) > maxRequestBodyBytes) {
         reject(new Error("Request body is too large."));
         request.destroy();
       }
@@ -167,11 +169,22 @@ function readProfileEnv() {
   const profiles = configuredShellProfiles();
 
   for (const profile of profiles) {
-    if (!fs.existsSync(profile)) {
+    let stat;
+    try {
+      stat = fs.statSync(profile);
+    } catch {
       continue;
     }
 
-    Object.assign(profileEnv, parseShellProfile(fs.readFileSync(profile, "utf8")));
+    if (!stat.isFile() || stat.size > maxProfileBytes) {
+      continue;
+    }
+
+    try {
+      Object.assign(profileEnv, parseShellProfile(fs.readFileSync(profile, "utf8")));
+    } catch {
+      // Ignore unreadable profiles; environment scanning should fail closed per file.
+    }
   }
 
   return { profileEnv, profiles };
@@ -245,7 +258,7 @@ function createHelperServer(options = {}) {
       }
 
       if (request.method === "GET" && url.pathname === "/health") {
-        sendJson(response, request, allowedOrigins, 200, { ok: true, shellProfiles: configuredShellProfiles() });
+        sendJson(response, request, allowedOrigins, 200, { ok: true });
         return;
       }
 
@@ -287,7 +300,6 @@ function startHelperServer(options = {}) {
       const address = server.address();
       console.log(`API Key Checker helper listening at http://${host}:${address.port}`);
       console.log(`Allowed origins: ${allowedOrigins.join(", ")}`);
-      console.log(`Helper token: ${token}`);
       console.log(`Shell profiles: ${configuredShellProfiles().join(", ") || "process environment only"}`);
       resolve({ server, port: address.port, host, token, allowedOrigins, shellProfiles: configuredShellProfiles() });
     });

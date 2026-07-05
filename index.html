@@ -3,8 +3,12 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'self'; base-uri 'none'; object-src 'none'; frame-ancestors 'none'; form-action 'none'; script-src 'self'; style-src 'self'; connect-src 'self' http://127.0.0.1:* http://localhost:*"
+    />
     <title>API Key Checker</title>
-    <link rel="stylesheet" href="./src/styles.css" />
+    <link rel="stylesheet" href="./src/styles.css?v=20260706-provider-left" />
   </head>
   <body>
     <main class="app-shell">
@@ -27,48 +31,49 @@
         </div>
       </header>
 
-      <section class="toolbar" id="toolbarSection" aria-label="供應商控制">
-        <div class="provider-heading">
-          <label class="field-label" id="providerLabel" for="providerSelect">供應商</label>
-          <p class="provider-help" id="providerHelp"></p>
-        </div>
-        <label class="provider-count-control" for="providerCountSelect">
-          <span id="providerCountLabel">供應商數量</span>
-          <select id="providerCountSelect" aria-label="供應商數量">
-            <option value="12" selected>12</option>
-            <option value="24">24</option>
-            <option value="50">50</option>
-          </select>
-        </label>
-        <select id="providerSelect" class="provider-select" multiple size="8"></select>
-        <div class="toolbar-actions">
-          <button id="openTerminalButton" type="button" class="secondary">開啟終端</button>
-          <button id="selectTopButton" type="button">選取精選 12 家</button>
-          <button id="clearButton" type="button" class="secondary">清除</button>
-          <button id="refreshButton" type="button" class="secondary">重新掃描</button>
-        </div>
-      </section>
+      <section class="notice" id="modeNotice" hidden></section>
 
-      <section class="notice" id="modeNotice"></section>
+      <div class="workspace-layout">
+        <aside class="toolbar" id="toolbarSection" aria-label="供應商控制">
+          <div class="provider-heading">
+            <label class="field-label" id="providerLabel" for="providerSelect">供應商</label>
+            <p class="provider-help" id="providerHelp"></p>
+          </div>
+          <label class="provider-count-control" for="providerCountSelect">
+            <span id="providerCountLabel">供應商數量</span>
+            <select id="providerCountSelect" aria-label="供應商數量">
+              <option value="12" selected>12</option>
+              <option value="24">24</option>
+              <option value="50">50</option>
+            </select>
+          </label>
+          <select id="providerSelect" class="provider-select" multiple size="14"></select>
+          <div class="toolbar-actions">
+            <button id="openTerminalButton" type="button" class="secondary">開啟終端</button>
+            <button id="selectTopButton" type="button">選取目前 12 家</button>
+            <button id="clearButton" type="button" class="secondary">清除</button>
+            <button id="refreshButton" type="button" class="secondary">重新掃描</button>
+          </div>
+        </aside>
 
-      <section class="status-panel" id="statusPanel" aria-label="已選供應商 API key 狀態">
-        <div class="table-wrap">
-          <table>
-            <thead>
-              <tr>
-                <th id="providerHeader">供應商</th>
-                <th id="envHeader">環境變數</th>
-                <th id="statusHeader">狀態</th>
-                <th id="valueHeader">值</th>
-                <th id="actionHeader">操作</th>
-              </tr>
-            </thead>
-            <tbody id="statusRows"></tbody>
-          </table>
-        </div>
-      </section>
+        <section class="status-panel" id="statusPanel" aria-label="已選供應商 API key 狀態">
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th id="providerHeader">供應商</th>
+                  <th id="envHeader">環境變數</th>
+                  <th id="statusHeader">狀態</th>
+                  <th id="valueHeader">值</th>
+                </tr>
+              </thead>
+              <tbody id="statusRows"></tbody>
+            </table>
+          </div>
+        </section>
+      </div>
     </main>
 
-    <script type="module" src="./src/app.js?v=20260705-local-fallback"></script>
+    <script type="module" src="./src/app.js?v=20260706-remove-copy-action"></script>
   </body>
 </html>

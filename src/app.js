@@ -21,7 +21,6 @@ const providerHeader = document.querySelector("#providerHeader");
 const envHeader = document.querySelector("#envHeader");
 const statusHeader = document.querySelector("#statusHeader");
 const valueHeader = document.querySelector("#valueHeader");
-const actionHeader = document.querySelector("#actionHeader");
 
 const state = {
   language: "zh",
@@ -57,7 +56,6 @@ const messages = {
     envHeader: "環境變數",
     statusHeader: "狀態",
     valueHeader: "值",
-    actionHeader: "操作",
     checkingHelper: "正在檢查 helper...",
     helperConnected: "本機 helper：已連線",
     helperDisconnected: "本機 helper：未連線",
@@ -89,8 +87,6 @@ const messages = {
     windowsDisplayCommand: "Windows 顯示",
     copyMacCommand: "複製 macOS",
     copyWindowsCommand: "複製 Windows",
-    save: "複製指令",
-    copyCommand: "複製指令",
     emptyState: "請至少選擇一個供應商來檢查 API key 環境變數。",
     enterValueFirst: "請先輸入",
     copiedSetupCommand: "已複製設定指令：",
@@ -114,7 +110,6 @@ const messages = {
     envHeader: "Environment variable",
     statusHeader: "Status",
     valueHeader: "Value",
-    actionHeader: "Action",
     checkingHelper: "Checking helper...",
     helperConnected: "Local helper: Connected",
     helperDisconnected: "Local helper: Not connected",
@@ -146,8 +141,6 @@ const messages = {
     windowsDisplayCommand: "Windows show",
     copyMacCommand: "Copy macOS",
     copyWindowsCommand: "Copy Windows",
-    save: "Copy command",
-    copyCommand: "Copy command",
     emptyState: "Select at least one provider to inspect API key variables.",
     enterValueFirst: "Enter a value for",
     copiedSetupCommand: "Copied setup command for",
@@ -418,7 +411,6 @@ function renderStaticText() {
   envHeader.textContent = t("envHeader");
   statusHeader.textContent = t("statusHeader");
   valueHeader.textContent = t("valueHeader");
-  actionHeader.textContent = t("actionHeader");
   setHelperStatus(state.helperConnected);
 }
 
@@ -532,20 +524,7 @@ function renderRows() {
         valueCell.append(input, commandGrid);
       }
 
-      const actionCell = document.createElement("td");
-      const actionButton = document.createElement("button");
-      actionButton.type = "button";
-      if (isFound) {
-        actionButton.className = "secondary hidden-action";
-        actionButton.disabled = true;
-        actionButton.setAttribute("aria-hidden", "true");
-      } else {
-        actionButton.dataset.copyKey = envVar;
-        actionButton.textContent = state.helperConnected ? t("save") : t("copyCommand");
-      }
-      actionCell.append(actionButton);
-
-      row.append(providerCell, envCell, statusCell, valueCell, actionCell);
+      row.append(providerCell, envCell, statusCell, valueCell);
       statusRows.append(row);
     }
   }
@@ -553,7 +532,7 @@ function renderRows() {
   if (providers.length === 0) {
     const row = document.createElement("tr");
     const cell = document.createElement("td");
-    cell.colSpan = 5;
+    cell.colSpan = 4;
     cell.className = "empty-state";
     cell.textContent = t("emptyState");
     row.append(cell);
@@ -639,17 +618,6 @@ async function scanKeys() {
 
   state.scanResults = await response.json();
   renderRows();
-}
-
-async function copySetupCommand(envVar) {
-  const value = state.inputValues[envVar] || "";
-  if (!value.trim()) {
-    alert(`${t("enterValueFirst")} ${envVar}。`);
-    return;
-  }
-
-  await navigator.clipboard.writeText(buildExportCommand(envVar, value));
-  alert(`${t("copiedSetupCommand")} ${envVar}。`);
 }
 
 async function copyTerminalCommand(envVar, platform) {
@@ -747,7 +715,6 @@ function bindEvents() {
 
   statusRows.addEventListener("click", (event) => {
     const toggleKey = event.target.dataset.toggleKey;
-    const copyEnvVar = event.target.dataset.copyKey;
     const copyCommandEnv = event.target.dataset.copyCommandEnv;
     const copyCommandPlatform = event.target.dataset.copyCommandPlatform;
     const copyDisplayEnv = event.target.dataset.copyDisplayEnv;
@@ -760,10 +727,6 @@ function bindEvents() {
         state.visibleKeys.add(toggleKey);
       }
       renderRows();
-    }
-
-    if (copyEnvVar) {
-      copySetupCommand(copyEnvVar).catch((error) => alert(error.message));
     }
 
     if (copyCommandEnv && copyCommandPlatform) {

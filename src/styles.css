@@ -34,7 +34,7 @@ select {
 }
 
 .app-shell {
-  width: min(1180px, calc(100% - 32px));
+  width: min(1440px, calc(100% - 32px));
   margin: 0 auto;
   padding: 32px 0;
 }
@@ -123,15 +123,25 @@ h1 {
   box-shadow: var(--shadow);
 }
 
-.toolbar {
+.workspace-layout {
   display: grid;
-  grid-template-columns: minmax(240px, 1fr) auto;
+  grid-template-columns: minmax(320px, 360px) minmax(0, 1fr);
   gap: 16px;
+  align-items: start;
+}
+
+.toolbar {
+  position: sticky;
+  top: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
   padding: 18px;
 }
 
 .provider-heading {
-  grid-column: 1 / -1;
+  display: grid;
+  gap: 8px;
 }
 
 .provider-count-control {
@@ -167,10 +177,11 @@ h1 {
 }
 
 .provider-help {
-  max-width: 920px;
-  margin: 8px 0 0;
+  max-height: 9.5rem;
+  overflow: auto;
+  margin: 0;
   color: var(--muted);
-  font-size: 0.92rem;
+  font-size: 0.86rem;
   line-height: 1.55;
 }
 
@@ -178,7 +189,7 @@ h1 {
   display: inline-flex;
   align-items: center;
   min-height: 28px;
-  margin-left: 10px;
+  margin: 8px 0 0;
   padding: 2px 8px;
   border: 2px solid #000000;
   border-radius: 6px;
@@ -188,8 +199,7 @@ h1 {
 }
 
 .provider-select {
-  grid-column: 1;
-  min-height: 210px;
+  min-height: 420px;
   width: 100%;
   border: 1px solid var(--line);
   border-radius: 8px;
@@ -208,12 +218,14 @@ h1 {
 }
 
 .toolbar-actions {
-  grid-column: 2;
-  grid-row: 2 / span 2;
-  display: flex;
-  flex-direction: column;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
   gap: 10px;
-  min-width: 170px;
+}
+
+.toolbar-actions button:first-child,
+.toolbar-actions button:nth-child(2) {
+  grid-column: 1 / -1;
 }
 
 button {
@@ -267,6 +279,10 @@ button.hidden-action {
   color: var(--muted);
 }
 
+.notice[hidden] {
+  display: none;
+}
+
 .notice-action {
   display: inline-flex;
   align-items: center;
@@ -295,7 +311,7 @@ button.hidden-action {
 
 table {
   width: 100%;
-  min-width: 1040px;
+  min-width: 820px;
   border-collapse: collapse;
 }
 
@@ -427,15 +443,19 @@ code {
 
 @media (max-width: 760px) {
   .app-shell {
-    width: min(100% - 20px, 1180px);
+    width: min(100% - 20px, 1440px);
     padding: 20px 0;
   }
 
   .app-header,
-  .toolbar {
+  .workspace-layout {
     grid-template-columns: 1fr;
     flex-direction: column;
     align-items: stretch;
+  }
+
+  .toolbar {
+    position: static;
   }
 
   .header-controls {
@@ -451,13 +471,16 @@ code {
     width: 100%;
   }
 
-  .provider-select,
-  .toolbar-actions {
-    grid-column: auto;
-    grid-row: auto;
+  .provider-select {
+    min-height: 260px;
   }
 
   .toolbar-actions {
-    min-width: 0;
+    grid-template-columns: 1fr;
+  }
+
+  .toolbar-actions button:first-child,
+  .toolbar-actions button:nth-child(2) {
+    grid-column: auto;
   }
 }

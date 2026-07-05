@@ -7,6 +7,15 @@ let mainWindow;
 let helperServer;
 let staticServer;
 
+function isAllowedExternalUrl(value) {
+  try {
+    const url = new URL(value);
+    return ["https:", "http:", "mailto:"].includes(url.protocol);
+  } catch {
+    return false;
+  }
+}
+
 async function closeServer(server) {
   if (!server) {
     return;
@@ -42,9 +51,19 @@ async function createWindow() {
     },
   });
 
+  const appOrigin = `http://${web.host}:${web.port}`;
+
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {
-    shell.openExternal(url);
+    if (isAllowedExternalUrl(url)) {
+      shell.openExternal(url);
+    }
     return { action: "deny" };
+  });
+
+  mainWindow.webContents.on("will-navigate", (event, url) => {
+    if (!url.startsWith(`${appOrigin}/`)) {
+      event.preventDefault();
+    }
   });
 
   await mainWindow.loadURL(
