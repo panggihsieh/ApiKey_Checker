@@ -29,7 +29,7 @@ const state = {
   providerLimit: 12,
   catalogSource: "curated",
   catalogModelCount: 0,
-  catalogUpdatedAt: "2026-07-05",
+  catalogUpdatedAt: new Date("2026-07-05T00:00:00+08:00"),
   helperConnected: false,
   helperBaseUrl: "",
   scanResults: {},
@@ -99,12 +99,12 @@ const messages = {
     providerLabel: "Providers",
     providerCountLabel: "Provider count",
     providerHelp:
-      "{count} providers source: live public sources OpenRouter Models & Artificial Analysis LLM Leaderboard & LMArena / Arena Leaderboard, reordered by model match count.",
+      "{count} providers data source: live public sources OpenRouter Models & Artificial Analysis LLM Leaderboard & LMArena / Arena Leaderboard, reordered by model match count.",
     liveSourceSummary:
       "live public source OpenRouter Models API ({modelCount} models loaded); reference sources Artificial Analysis LLM Leaderboard and LMArena / Arena Leaderboard; fallback source src/providers.js",
     curatedSourceSummary:
       "live public source failed or is unavailable, using fallback source src/providers.js; reference sources Artificial Analysis LLM Leaderboard and LMArena / Arena Leaderboard",
-    updatedAt: "Updated: {updatedAt}",
+    updatedAt: "Update date: {updatedAt}",
     showUpdatedAt: true,
     selectTop: "Select current {count}",
     clear: "Clear",
@@ -177,7 +177,7 @@ function renderProviderHelp() {
   if (t("showUpdatedAt")) {
     const updatedAt = document.createElement("strong");
     updatedAt.className = "updated-at";
-    updatedAt.textContent = formatMessage("updatedAt", { updatedAt: state.catalogUpdatedAt });
+    updatedAt.textContent = formatMessage("updatedAt", { updatedAt: formatUpdatedAt() });
     providerHelp.append(updatedAt, t("sentenceEnd"));
   }
 }
@@ -285,8 +285,8 @@ const providerMatchAliases = {
   baichuan: ["baichuan"],
 };
 
-function currentTimestamp() {
-  return new Date().toLocaleString(state.language === "zh" ? "zh-TW" : "en-US", {
+function formatUpdatedAt() {
+  return state.catalogUpdatedAt.toLocaleString(state.language === "zh" ? "zh-TW" : "en-US", {
     year: "numeric",
     month: "2-digit",
     day: "2-digit",
@@ -338,12 +338,12 @@ async function loadPublicProviderCatalog() {
     state.providers = scoreProvidersFromOpenRouterModels(models);
     state.catalogSource = "openrouter";
     state.catalogModelCount = models.length;
-    state.catalogUpdatedAt = currentTimestamp();
+    state.catalogUpdatedAt = new Date();
   } catch {
     state.providers = curatedProviders;
     state.catalogSource = "curated";
     state.catalogModelCount = 0;
-    state.catalogUpdatedAt = "2026-07-05";
+    state.catalogUpdatedAt = new Date("2026-07-05T00:00:00+08:00");
   }
 }
 
