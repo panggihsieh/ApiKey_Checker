@@ -89,7 +89,7 @@ jobs:
           cache: npm
 
       - name: Install system dependencies
-        run: sudo apt-get update && sudo apt-get install -y msitools
+        run: sudo apt-get update && sudo apt-get install -y wixl
 
       - name: Install dependencies
         run: npm ci
