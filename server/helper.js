@@ -1,13 +1,35 @@
 #!/usr/bin/env node
 
 const http = require("http");
+const childProcess = require("child_process");
 const fs = require("fs");
 const os = require("os");
 const path = require("path");
 
-const port = Number(process.env.API_KEY_CHECKER_HELPER_PORT || 8787);
-const shellProfile = process.env.API_KEY_CHECKER_PROFILE || path.join(os.homedir(), ".zshrc");
 const envVarPattern = /^[A-Z][A-Z0-9_]*$/;
+const defaultShellProfiles = [
+  ".zshrc",
+  ".zprofile",
+  ".bashrc",
+  ".bash_profile",
+  ".profile",
+].map((fileName) => path.join(os.homedir(), fileName));
+
+function configuredShellProfiles() {
+  if (process.env.API_KEY_CHECKER_PROFILE) {
+    return [process.env.API_KEY_CHECKER_PROFILE];
+  }
+
+  if (process.platform === "win32") {
+    return [];
+  }
+
+  return defaultShellProfiles;
+}
+
+function writableShellProfile() {
+  return configuredShellProfiles()[0] || path.join(os.homedir(), ".zshrc");
+}
 
 function corsHeaders(contentType) {
   return {
@@ -64,7 +86,66 @@ function quoteForShell(value) {
   return `"${String(value).replace(/\\/g, "\\\\").replace(/"/g, '\\"').replace(/\$/g, "\\$").replace(/`/g, "\\`")}"`;
 }
 
+function unquoteShellValue(value) {
+  const trimmed = String(value).trim();
+
+  if (trimmed.length >= 2 && trimmed.startsWith("'") && trimmed.endsWith("'")) {
+    return trimmed.slice(1, -1);
+  }
+
+  if (trimmed.length >= 2 && trimmed.startsWith('"') && trimmed.endsWith('"')) {
+    return trimmed
+      .slice(1, -1)
+      .replace(/\\(["\\$`])/g, "$1")
+      .replace(/\\n/g, "\n")
+      .replace(/\\r/g, "\r")
+      .replace(/\\t/g, "\t");
+  }
+
+  return trimmed.replace(/\s+#.*$/, "").trim();
+}
+
+function parseShellProfile(content) {
+  const env = {};
+
+  for (const line of String(content).split(/\r?\n/)) {
+    const trimmed = line.trim();
+    if (!trimmed || trimmed.startsWith("#")) {
+      continue;
+    }
+
+    const match = trimmed.match(/^(?:export\s+)?([A-Z][A-Z0-9_]*)=(.*)$/);
+    if (match) {
+      env[match[1]] = unquoteShellValue(match[2]);
+    }
+  }
+
+  return env;
+}
+
+function readProfileEnv() {
+  const profileEnv = {};
+  const profiles = configuredShellProfiles();
+
+  for (const profile of profiles) {
+    if (!fs.existsSync(profile)) {
+      continue;
+    }
+
+    Object.assign(profileEnv, parseShellProfile(fs.readFileSync(profile, "utf8")));
+  }
+
+  return { profileEnv, profiles };
+}
+
 function upsertEnvVar(envVar, value) {
+  if (process.platform === "win32" && !process.env.API_KEY_CHECKER_PROFILE) {
+    childProcess.execFileSync("setx", [envVar, value], { windowsHide: true });
+    process.env[envVar] = value;
+    return;
+  }
+
+  const shellProfile = writableShellProfile();
   const exportLine = `export ${envVar}=${quoteForShell(value)}`;
   let content = "";
 
@@ -92,13 +173,14 @@ async function handleCheck(request, response) {
   const body = await readJson(request);
   const envVars = Array.isArray(body.envVars) ? body.envVars : [];
   const results = {};
+  const { profileEnv } = readProfileEnv();
 
   for (const envVar of envVars) {
     if (!validateEnvVar(envVar)) {
       continue;
     }
 
-    const value = process.env[envVar] || "";
+    const value = process.env[envVar] || profileEnv[envVar] || "";
     results[envVar] = {
       status: value ? "found" : "missing",
       value,
@@ -123,40 +205,67 @@ async function handleSave(request, response) {
   }
 
   upsertEnvVar(envVar, value);
-  sendJson(response, 200, { ok: true, envVar, shellProfile });
+  sendJson(response, 200, { ok: true, envVar, shellProfile: writableShellProfile() });
 }
 
-const server = http.createServer(async (request, response) => {
-  try {
-    if (request.method === "OPTIONS") {
-      sendText(response, 204, "");
-      return;
+function createHelperServer() {
+  return http.createServer(async (request, response) => {
+    try {
+      if (request.method === "OPTIONS") {
+        sendText(response, 204, "");
+        return;
+      }
+
+      const url = new URL(request.url, `http://${request.headers.host}`);
+
+      if (request.method === "GET" && url.pathname === "/health") {
+        sendJson(response, 200, { ok: true, shellProfiles: configuredShellProfiles() });
+        return;
+      }
+
+      if (request.method === "POST" && url.pathname === "/api/check") {
+        await handleCheck(request, response);
+        return;
+      }
+
+      if (request.method === "POST" && url.pathname === "/api/save") {
+        await handleSave(request, response);
+        return;
+      }
+
+      sendText(response, 404, "Not found.");
+    } catch (error) {
+      sendText(response, 500, error.message || "Internal server error.");
     }
+  });
+}
 
-    const url = new URL(request.url, `http://${request.headers.host}`);
+function startHelperServer(options = {}) {
+  const port = Number(options.port ?? process.env.API_KEY_CHECKER_HELPER_PORT ?? 8787);
+  const host = options.host || "127.0.0.1";
+  const server = createHelperServer();
 
-    if (request.method === "GET" && url.pathname === "/health") {
-      sendJson(response, 200, { ok: true, shellProfile });
-      return;
-    }
+  return new Promise((resolve, reject) => {
+    server.once("error", reject);
+    server.listen(port, host, () => {
+      server.off("error", reject);
+      const address = server.address();
+      console.log(`API Key Checker helper listening at http://${host}:${address.port}`);
+      console.log(`Shell profiles: ${configuredShellProfiles().join(", ") || "process environment only"}`);
+      resolve({ server, port: address.port, host, shellProfiles: configuredShellProfiles() });
+    });
+  });
+}
 
-    if (request.method === "POST" && url.pathname === "/api/check") {
-      await handleCheck(request, response);
-      return;
-    }
+if (require.main === module) {
+  startHelperServer().catch((error) => {
+    console.error(error);
+    process.exit(1);
+  });
+}
 
-    if (request.method === "POST" && url.pathname === "/api/save") {
-      await handleSave(request, response);
-      return;
-    }
-
-    sendText(response, 404, "Not found.");
-  } catch (error) {
-    sendText(response, 500, error.message || "Internal server error.");
-  }
-});
-
-server.listen(port, "127.0.0.1", () => {
-  console.log(`API Key Checker helper listening at http://localhost:${port}`);
-  console.log(`Shell profile: ${shellProfile}`);
-});
+module.exports = {
+  createHelperServer,
+  parseShellProfile,
+  startHelperServer,
+};

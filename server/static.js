@@ -4,7 +4,6 @@ const http = require("http");
 const fs = require("fs");
 const path = require("path");
 
-const port = Number(process.env.API_KEY_CHECKER_WEB_PORT || 5173);
 const root = path.resolve(__dirname, "..");
 
 const contentTypes = {
@@ -36,25 +35,51 @@ function resolveRequestPath(requestUrl) {
   return resolved;
 }
 
-const server = http.createServer((request, response) => {
-  const filePath = resolveRequestPath(request.url);
+function createStaticServer() {
+  return http.createServer((request, response) => {
+    const filePath = resolveRequestPath(request.url);
 
-  if (!filePath) {
-    send(response, 403, "text/plain; charset=utf-8", "Forbidden.");
-    return;
-  }
-
-  fs.readFile(filePath, (error, data) => {
-    if (error) {
-      send(response, 404, "text/plain; charset=utf-8", "Not found.");
+    if (!filePath) {
+      send(response, 403, "text/plain; charset=utf-8", "Forbidden.");
       return;
     }
 
-    const ext = path.extname(filePath);
-    send(response, 200, contentTypes[ext] || "application/octet-stream", data);
-  });
-});
+    fs.readFile(filePath, (error, data) => {
+      if (error) {
+        send(response, 404, "text/plain; charset=utf-8", "Not found.");
+        return;
+      }
 
-server.listen(port, "127.0.0.1", () => {
-  console.log(`API Key Checker webapp listening at http://localhost:${port}`);
-});
+      const ext = path.extname(filePath);
+      send(response, 200, contentTypes[ext] || "application/octet-stream", data);
+    });
+  });
+}
+
+function startStaticServer(options = {}) {
+  const port = Number(options.port ?? process.env.API_KEY_CHECKER_WEB_PORT ?? 5173);
+  const host = options.host || "127.0.0.1";
+  const server = createStaticServer();
+
+  return new Promise((resolve, reject) => {
+    server.once("error", reject);
+    server.listen(port, host, () => {
+      server.off("error", reject);
+      const address = server.address();
+      console.log(`API Key Checker webapp listening at http://${host}:${address.port}`);
+      resolve({ server, port: address.port, host });
+    });
+  });
+}
+
+if (require.main === module) {
+  startStaticServer().catch((error) => {
+    console.error(error);
+    process.exit(1);
+  });
+}
+
+module.exports = {
+  createStaticServer,
+  startStaticServer,
+};
