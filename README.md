@@ -4,8 +4,9 @@ API Key Checker 是一個可部署到 GitHub Pages 的 WebApp，用來檢查所�
 
 此 App 有兩種模式：
 
-- GitHub Pages 模式：選擇供應商、查看環境變數名稱、輸入 key，並複製 shell 設定指令。
-- 本機 helper 模式：掃描本機環境變數，並將缺少的 key 儲存到 shell profile。
+- GitHub Pages 模式：選擇供應商、查看環境變數名稱、輸入 key，並複製終端設定指令。
+- 本機 helper 模式：掃描本機環境變數是否存在，並為缺少的 key 產生可貼到終端的
+  macOS / Windows 指令。
 
 ## 本機執行
 
@@ -25,13 +26,20 @@ http://localhost:5173
 http://localhost:8787
 ```
 
-預設會將儲存的 key 寫入：
+缺少的 key 會顯示兩種可複製指令：
 
-```text
-~/.zshrc
+```bash
+export OPENAI_API_KEY="..."
 ```
 
-測試時可指定自訂 shell profile：
+```powershell
+$env:OPENAI_API_KEY = '...'
+```
+
+本機 helper 連線時，介面會顯示「開啟終端」按鈕；此按鈕只會開啟空白終端，
+不會執行任何 API key 指令。
+
+測試時可指定自訂 shell profile 讀取來源：
 
 ```bash
 API_KEY_CHECKER_PROFILE=/tmp/api-key-checker.zshrc npm run helper
@@ -51,10 +59,11 @@ API_KEY_CHECKER_PROFILE=/tmp/api-key-checker.zshrc npm run helper
 
 部分瀏覽器會阻擋遠端 HTTPS GitHub Pages 頁面呼叫本機 loopback HTTP helper，即使 helper 已啟動也可能顯示未連線。若要穩定掃描本機 API key，請執行 `npm run dev` 並使用 `http://localhost:5173` 本機版。
 
-如果 helper 使用自訂 port，請在 WebApp URL 加上相同 port：
+如果 helper 使用自訂 port，請在 WebApp URL 加上相同 port。helper 也需要一次性
+token；建議使用 `npm run dev` 或桌面版自動產生 token，不要手動公開 helper：
 
 ```text
-http://localhost:5173/?helperPort=8788
+http://localhost:5173/?helperPort=8788#helperToken=...
 ```
 
 ## 桌面 App / 安裝檔
@@ -72,6 +81,14 @@ helper，因此使用者不需要另外執行 `npm run helper`。
    `Applications` 裡對 `API Key Checker` 按右鍵，選擇「打開」，再確認開啟。
 
 目前 macOS DMG 是 Apple Silicon arm64 版本，適用於 M 系列 Mac。
+
+若下載後 macOS 顯示「App 已損毀，無法打開」，代表未 notarized 的測試版被
+Gatekeeper quarantine 擋下。確認檔案來源可信後，可移除隔離屬性再開啟：
+
+```bash
+xattr -dr com.apple.quarantine "/Applications/API Key Checker.app"
+open "/Applications/API Key Checker.app"
+```
 
 開發時啟動桌面版：
 
@@ -105,8 +122,10 @@ npm run dist:win:msi-local
 這會先用 Electron Builder 建立 Windows unpacked app，再用 native `wixl`
 從 `dist/win-unpacked` 建立 per-user MSI。
 
-目前 macOS build 是未簽章版本（`identity: null`），適合本機測試或內部使用。
-若要公開發佈，請再設定 Apple Developer 簽章與 notarization。
+目前 macOS build 未使用 Apple Developer ID 簽章（`identity: null`），適合本機
+測試或內部使用。建置流程會對 `.app` 做本機 ad-hoc 簽章，避免 bundle 資源簽章
+不完整造成 macOS 誤判為損毀。若要公開發佈，請再設定 Apple Developer 簽章與
+notarization。
 
 ## 供應商
 
@@ -162,6 +181,17 @@ npm run dist:win:msi-local
 - iFlytek Spark
 - MiniMax
 - Baichuan AI
+
+## 安全性
+
+- 本機 helper 只監聽 loopback host，不對區網或網際網路開放。
+- 本機 helper 要求一次性 session token；沒有 token 的網頁不能呼叫 `/health`、
+  `/api/check` 或 `/api/open-terminal`；`/api/save` 已停用。
+- CORS 只允許啟動時指定的本機 WebApp origin，不使用 `Access-Control-Allow-Origin: *`。
+- `/api/check` 只回傳 found/missing 與遮蔽後的 key，不回傳完整既有 API key。
+- API key 不寫入 `localStorage` 或 `sessionStorage`。
+- 新輸入的 API key 不送到 helper，只在瀏覽器端產生 macOS / Windows 終端指令，
+  由使用者自行複製並貼到終端執行。
 ---
 
 # API Key Checker
@@ -170,8 +200,9 @@ API Key Checker is a GitHub Pages friendly webapp for checking which LLM API key
 
 The app has two modes:
 
-- GitHub Pages mode: select providers, view environment variable names, enter keys, and copy shell setup commands.
-- Local helper mode: scan local environment variables and save missing keys to a shell profile.
+- GitHub Pages mode: select providers, view environment variable names, enter keys, and copy terminal setup commands.
+- Local helper mode: scan whether local environment variables exist and generate
+  pasteable macOS / Windows terminal commands for missing keys.
 
 ## Run Locally
 
@@ -191,13 +222,20 @@ The local helper runs at:
 http://localhost:8787
 ```
 
-By default, saved keys are written to:
+Missing keys show two copyable command formats:
 
-```text
-~/.zshrc
+```bash
+export OPENAI_API_KEY="..."
 ```
 
-Use a custom shell profile for testing:
+```powershell
+$env:OPENAI_API_KEY = '...'
+```
+
+When the local helper is connected, the UI shows an "Open terminal" button. It opens
+a blank terminal only; it never executes API key commands.
+
+Use a custom shell profile read source for testing:
 
 ```bash
 API_KEY_CHECKER_PROFILE=/tmp/api-key-checker.zshrc npm run helper
@@ -215,10 +253,12 @@ Local scanning checks the running app process first, then reads shell profile fi
 
 This makes the installed desktop app more reliable when launched from Finder, Dock, or Start menu, where GUI apps may not inherit the same environment variables as a terminal shell.
 
-If the helper is running on a custom port, add the same port to the webapp URL:
+If the helper is running on a custom port, add the same port to the webapp URL. The
+helper also requires a one-time token; prefer `npm run dev` or the desktop app so
+the token is generated automatically, and do not expose the helper manually:
 
 ```text
-http://localhost:5173/?helperPort=8788
+http://localhost:5173/?helperPort=8788#helperToken=...
 ```
 
 ## Desktop App / Installers
@@ -346,7 +386,12 @@ The built-in provider list currently includes 50 providers:
 
 ## Safety
 
-- API keys are masked by default.
+- The local helper listens only on a loopback host, not on the LAN or internet.
+- The local helper requires a one-time session token; pages without the token cannot
+  call `/health`, `/api/check`, or `/api/open-terminal`; `/api/save` is disabled.
+- CORS allows only the locally launched WebApp origin, not `Access-Control-Allow-Origin: *`.
+- `/api/check` returns only found/missing status and masked key text, never full
+  existing API key values.
 - API keys are not stored in `localStorage`.
-- API keys are not sent to third-party services.
-- Keys are sent only to the local helper when saving.
+- Newly entered keys are not sent to the helper; the browser only generates macOS /
+  Windows terminal commands for the user to copy and paste manually.

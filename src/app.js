@@ -1,7 +1,6 @@
 import { curatedProviders } from "./providers.js?v=20260705-provider-count";
 
 const defaultHelperPort = "8787";
-const eyebrowText = document.querySelector("#eyebrowText");
 const languageLabel = document.querySelector("#languageLabel");
 const languageSelect = document.querySelector("#languageSelect");
 const providerSelect = document.querySelector("#providerSelect");
@@ -14,6 +13,7 @@ const helperStatus = document.querySelector("#helperStatus");
 const modeNotice = document.querySelector("#modeNotice");
 const toolbarSection = document.querySelector("#toolbarSection");
 const statusPanel = document.querySelector("#statusPanel");
+const openTerminalButton = document.querySelector("#openTerminalButton");
 const selectTopButton = document.querySelector("#selectTopButton");
 const clearButton = document.querySelector("#clearButton");
 const refreshButton = document.querySelector("#refreshButton");
@@ -32,6 +32,7 @@ const state = {
   catalogUpdatedAt: new Date("2026-07-05T00:00:00+08:00"),
   helperConnected: false,
   helperBaseUrl: "",
+  helperToken: "",
   scanResults: {},
   visibleKeys: new Set(),
   inputValues: {},
@@ -40,17 +41,12 @@ const state = {
 const messages = {
   zh: {
     documentTitle: "API Key Checker",
-    eyebrow: "本機 + GitHub Pages 可用",
     languageLabel: "介面語言",
     toolbarAria: "供應商控制",
     providerLabel: "供應商",
     providerCountLabel: "供應商數量",
     providerHelp:
-      "{count} 家資料來源：即時公開來源 OpenRouter Models ＆ Artificial Analysis LLM Leaderboard ＆LMArena / Arena Leaderboard 依照模型命中數並重新排序。",
-    liveSourceSummary:
-      "即時公開來源 OpenRouter Models API（已載入 {modelCount} 個模型）；參考來源 Artificial Analysis LLM Leaderboard、LMArena / Arena Leaderboard；fallback 來源 src/providers.js",
-    curatedSourceSummary:
-      "即時公開來源載入失敗或不可用，使用 fallback 來源 src/providers.js；參考來源 Artificial Analysis LLM Leaderboard、LMArena / Arena Leaderboard",
+      "{count} 家資料來源：OpenRouter Models 提供公開模型清單與模型命中數；Artificial Analysis LLM Leaderboard 提供模型能力、價格、速度參考；LMArena / Arena Leaderboard 提供使用者偏好與對戰排名參考；依模型命中數並參考上述來源重新排序。",
     updatedAt: "更新日期：{updatedAt}",
     showUpdatedAt: true,
     selectTop: "選取目前 {count} 家",
@@ -66,13 +62,12 @@ const messages = {
     helperConnected: "本機 helper：已連線",
     helperDisconnected: "本機 helper：未連線",
     localMode:
-      "本機 helper 模式已啟用。你可以掃描並儲存這台電腦上的 API key。",
+      "本機 helper 模式已啟用。你可以掃描這台電腦是否已有 API key；新增 key 會產生終端指令，由你自行貼上執行。",
     pagesMode:
       "GitHub Pages 模式已啟用。瀏覽器安全限制會阻擋本機掃描，因此此模式會產生可複製的 shell 指令。",
     remoteHelperBlocked: "遠端頁可能無法直接連到本機 helper。",
     openLocalApp: "開啟本機版",
     catalogLabel: "Catalog",
-    catalogOpenRouter: "OpenRouter 即時公開模型 catalog",
     catalogCurated: "內建精選清單，不連接任何大模型",
     sentenceEnd: "。",
     doubleClickHint: "雙擊供應商可顯示或隱藏已找到的 API key",
@@ -83,27 +78,32 @@ const messages = {
     enterPlaceholder: "輸入",
     show: "顯示",
     hide: "隱藏",
-    save: "儲存",
+    masked: "已遮蔽",
+    openTerminal: "開啟終端",
+    terminalUnavailable: "需要本機 helper 才能開啟終端。",
+    terminalOpenFailed: "無法開啟終端。",
+    terminalOpened: "已開啟終端。",
+    macCommand: "macOS / zsh",
+    windowsCommand: "Windows PowerShell",
+    macDisplayCommand: "macOS 顯示",
+    windowsDisplayCommand: "Windows 顯示",
+    copyMacCommand: "複製 macOS",
+    copyWindowsCommand: "複製 Windows",
+    save: "複製指令",
     copyCommand: "複製指令",
     emptyState: "請至少選擇一個供應商來檢查 API key 環境變數。",
     enterValueFirst: "請先輸入",
     copiedSetupCommand: "已複製設定指令：",
     unableToScan: "無法掃描 API key。",
-    unableToSave: "無法儲存",
   },
   en: {
     documentTitle: "API Key Checker",
-    eyebrow: "Local + GitHub Pages ready",
     languageLabel: "Language",
     toolbarAria: "Provider controls",
     providerLabel: "Providers",
     providerCountLabel: "Provider count",
     providerHelp:
-      "{count} providers data source: live public sources OpenRouter Models & Artificial Analysis LLM Leaderboard & LMArena / Arena Leaderboard, reordered by model match count.",
-    liveSourceSummary:
-      "live public source OpenRouter Models API ({modelCount} models loaded); reference sources Artificial Analysis LLM Leaderboard and LMArena / Arena Leaderboard; fallback source src/providers.js",
-    curatedSourceSummary:
-      "live public source failed or is unavailable, using fallback source src/providers.js; reference sources Artificial Analysis LLM Leaderboard and LMArena / Arena Leaderboard",
+      "{count} providers data source: OpenRouter Models provides the public model list and model match count; Artificial Analysis LLM Leaderboard provides model capability, pricing, and speed references; LMArena / Arena Leaderboard provides user preference and battle ranking references; providers are reordered by model match count with these sources as reference.",
     updatedAt: "Update date: {updatedAt}",
     showUpdatedAt: true,
     selectTop: "Select current {count}",
@@ -118,13 +118,13 @@ const messages = {
     checkingHelper: "Checking helper...",
     helperConnected: "Local helper: Connected",
     helperDisconnected: "Local helper: Not connected",
-    localMode: "Local helper mode is active. You can scan and save API keys on this machine.",
+    localMode:
+      "Local helper mode is active. You can scan whether API keys exist; new keys are turned into terminal commands for you to paste manually.",
     pagesMode:
       "GitHub Pages mode is active. Browser security blocks local scanning, so the app will generate copyable shell commands instead.",
     remoteHelperBlocked: "The remote page may not be able to reach the local helper directly.",
     openLocalApp: "Open local app",
     catalogLabel: "Catalog",
-    catalogOpenRouter: "OpenRouter live public model catalog",
     catalogCurated: "Built-in curated fallback",
     sentenceEnd: ".",
     doubleClickHint: "Double-click a provider to show or hide found API keys",
@@ -135,13 +135,23 @@ const messages = {
     enterPlaceholder: "Enter",
     show: "Show",
     hide: "Hide",
-    save: "Save",
+    masked: "masked",
+    openTerminal: "Open terminal",
+    terminalUnavailable: "Local helper is required to open a terminal.",
+    terminalOpenFailed: "Unable to open terminal.",
+    terminalOpened: "Terminal opened.",
+    macCommand: "macOS / zsh",
+    windowsCommand: "Windows PowerShell",
+    macDisplayCommand: "macOS show",
+    windowsDisplayCommand: "Windows show",
+    copyMacCommand: "Copy macOS",
+    copyWindowsCommand: "Copy Windows",
+    save: "Copy command",
     copyCommand: "Copy command",
     emptyState: "Select at least one provider to inspect API key variables.",
     enterValueFirst: "Enter a value for",
     copiedSetupCommand: "Copied setup command for",
     unableToScan: "Unable to scan API keys.",
-    unableToSave: "Unable to save",
   },
 };
 
@@ -157,20 +167,14 @@ function formatMessage(key, values = {}) {
 }
 
 function catalogText() {
-  return state.catalogSource === "openrouter" ? t("catalogOpenRouter") : t("catalogCurated");
+  return t("catalogCurated");
 }
 
 function renderProviderHelp() {
   providerHelp.replaceChildren();
-  const sourceSummaryKey =
-    state.catalogSource === "openrouter" ? "liveSourceSummary" : "curatedSourceSummary";
-  const sourceSummary = formatMessage(sourceSummaryKey, {
-    modelCount: state.catalogModelCount,
-  });
   providerHelp.append(
     formatMessage("providerHelp", {
       count: state.providerLimit,
-      sourceSummary,
     }),
   );
 
@@ -201,10 +205,6 @@ function maskKey(value) {
   return `${value.slice(0, 4)}...${value.slice(-4)}`;
 }
 
-function shellQuote(value) {
-  return String(value).replace(/'/g, "'\\''");
-}
-
 function shellExportValue(value) {
   return `"${String(value)
     .replace(/\\/g, "\\\\")
@@ -213,15 +213,100 @@ function shellExportValue(value) {
     .replace(/`/g, "\\`")}"`;
 }
 
-function buildProfileAppendCommand(envVar, value) {
+function buildExportCommand(envVar, value) {
   const exportLine = `export ${envVar}=${shellExportValue(value)}`;
-  return `printf '%s\\n' '${shellQuote(exportLine)}' >> ~/.zshrc`;
+  return exportLine;
+}
+
+function powerShellValue(value) {
+  return `'${String(value).replace(/'/g, "''")}'`;
+}
+
+function buildWindowsCommand(envVar, value) {
+  return `$env:${envVar} = ${powerShellValue(value)}`;
+}
+
+function buildMacDisplayCommand(envVar) {
+  return `printf '%s\\n' "$${envVar}"`;
+}
+
+function buildWindowsDisplayCommand(envVar) {
+  return `Write-Output $env:${envVar}`;
+}
+
+function commandForPlatform(platform, envVar) {
+  const value = state.inputValues[envVar] || "";
+  if (platform === "windows") {
+    return buildWindowsCommand(envVar, value);
+  }
+  return buildExportCommand(envVar, value);
+}
+
+function displayCommandForPlatform(platform, envVar) {
+  if (platform === "windows") {
+    return buildWindowsDisplayCommand(envVar);
+  }
+  return buildMacDisplayCommand(envVar);
+}
+
+function preferredCommandPlatform() {
+  const platform = `${navigator.userAgentData?.platform || ""} ${navigator.platform || ""}`;
+  return /win/i.test(platform) ? "windows" : "mac";
+}
+
+function renderCommandGrid(envVar, commands) {
+  const commandGrid = document.createElement("div");
+  commandGrid.className = "command-grid";
+
+  for (const command of commands) {
+    const commandBox = document.createElement("div");
+    commandBox.className = "command-box";
+    const commandHeader = document.createElement("div");
+    commandHeader.className = "command-header";
+    const label = document.createElement("span");
+    label.textContent = command.label;
+    const copyButton = document.createElement("button");
+    copyButton.type = "button";
+    copyButton.className = "secondary compact";
+    copyButton.textContent = command.buttonText;
+    if (command.kind === "display") {
+      copyButton.dataset.copyDisplayPlatform = command.platform;
+      copyButton.dataset.copyDisplayEnv = envVar;
+    } else {
+      copyButton.dataset.copyCommandPlatform = command.platform;
+      copyButton.dataset.copyCommandEnv = envVar;
+    }
+    const code = document.createElement("code");
+    code.className = "terminal-command";
+    code.dataset.commandTextPlatform = command.platform;
+    code.dataset.commandTextEnv = envVar;
+    code.textContent = command.text;
+    commandHeader.append(label, copyButton);
+    commandBox.append(commandHeader, code);
+    commandGrid.append(commandBox);
+  }
+
+  return commandGrid;
 }
 
 function helperPort() {
   const params = new URLSearchParams(window.location.search);
   const port = params.get("helperPort") || defaultHelperPort;
   return /^\d{2,5}$/.test(port) ? port : defaultHelperPort;
+}
+
+function helperToken() {
+  const hash = window.location.hash.startsWith("#") ? window.location.hash.slice(1) : "";
+  const params = new URLSearchParams(hash);
+  const token = params.get("helperToken") || "";
+  return /^[A-Za-z0-9_-]{32,}$/.test(token) ? token : "";
+}
+
+function helperHeaders() {
+  return {
+    "Content-Type": "application/json",
+    "X-API-Key-Checker-Token": state.helperToken,
+  };
 }
 
 function helperCandidates() {
@@ -253,38 +338,6 @@ async function fetchWithTimeout(url, options = {}) {
   }
 }
 
-const providerMatchAliases = {
-  openai: ["openai", "gpt"],
-  anthropic: ["anthropic", "claude"],
-  google: ["google", "gemini"],
-  deepseek: ["deepseek"],
-  xai: ["x-ai", "xai", "grok"],
-  mistral: ["mistral"],
-  cohere: ["cohere", "command"],
-  meta: ["meta", "llama"],
-  alibaba: ["alibaba", "qwen", "dashscope"],
-  baidu: ["baidu", "ernie", "qianfan"],
-  moonshot: ["moonshot", "kimi"],
-  zhipu: ["zhipu", "glm"],
-  openrouter: ["openrouter"],
-  perplexity: ["perplexity", "sonar"],
-  together: ["together"],
-  groq: ["groq"],
-  fireworks: ["fireworks"],
-  replicate: ["replicate"],
-  huggingface: ["huggingface", "hugging face"],
-  "azure-openai": ["azure"],
-  "vertex-ai": ["vertex"],
-  nvidia: ["nvidia", "nim"],
-  ai21: ["ai21", "jamba"],
-  stability: ["stability"],
-  runway: ["runway"],
-  minimax: ["minimax"],
-  bytedance: ["bytedance", "doubao", "volcengine"],
-  tencent: ["tencent", "hunyuan"],
-  baichuan: ["baichuan"],
-};
-
 function formatUpdatedAt() {
   return state.catalogUpdatedAt.toLocaleString(state.language === "zh" ? "zh-TW" : "en-US", {
     year: "numeric",
@@ -295,56 +348,11 @@ function formatUpdatedAt() {
   });
 }
 
-function scoreProvidersFromOpenRouterModels(models) {
-  const scores = Object.fromEntries(curatedProviders.map((provider) => [provider.id, 0]));
-
-  for (const model of models) {
-    const searchable = `${model.id || ""} ${model.name || ""}`.toLowerCase();
-    for (const [providerId, aliases] of Object.entries(providerMatchAliases)) {
-      if (aliases.some((alias) => searchable.includes(alias))) {
-        scores[providerId] += 1;
-      }
-    }
-  }
-
-  return [...curatedProviders]
-    .map((provider) => ({
-      ...provider,
-      liveModelMatches: scores[provider.id] || 0,
-    }))
-    .sort((a, b) => b.liveModelMatches - a.liveModelMatches || a.rank - b.rank)
-    .map((provider, index) => ({
-      ...provider,
-      rank: index + 1,
-    }));
-}
-
 async function loadPublicProviderCatalog() {
-  try {
-    const response = await fetchWithTimeout("https://openrouter.ai/api/v1/models", {
-      cache: "no-store",
-      timeoutMs: 3500,
-    });
-    if (!response.ok) {
-      throw new Error("OpenRouter catalog is unavailable.");
-    }
-
-    const payload = await response.json();
-    const models = Array.isArray(payload.data) ? payload.data : [];
-    if (models.length === 0) {
-      throw new Error("OpenRouter catalog returned no models.");
-    }
-
-    state.providers = scoreProvidersFromOpenRouterModels(models);
-    state.catalogSource = "openrouter";
-    state.catalogModelCount = models.length;
-    state.catalogUpdatedAt = new Date();
-  } catch {
-    state.providers = curatedProviders;
-    state.catalogSource = "curated";
-    state.catalogModelCount = 0;
-    state.catalogUpdatedAt = new Date("2026-07-05T00:00:00+08:00");
-  }
+  state.providers = curatedProviders;
+  state.catalogSource = "curated";
+  state.catalogModelCount = 0;
+  state.catalogUpdatedAt = new Date("2026-07-05T00:00:00+08:00");
 }
 
 function getSelectedProviders() {
@@ -393,7 +401,6 @@ function renderModeNotice(connected) {
 function renderStaticText() {
   document.documentElement.lang = state.language === "zh" ? "zh-Hant" : "en";
   document.title = t("documentTitle");
-  eyebrowText.textContent = t("eyebrow");
   languageLabel.textContent = t("languageLabel");
   languageSelect.setAttribute("aria-label", t("languageLabel"));
   toolbarSection.setAttribute("aria-label", t("toolbarAria"));
@@ -405,6 +412,8 @@ function renderStaticText() {
   selectTopButton.textContent = formatMessage("selectTop", { count: state.providerLimit });
   clearButton.textContent = t("clear");
   refreshButton.textContent = t("refresh");
+  openTerminalButton.textContent = t("openTerminal");
+  openTerminalButton.disabled = !state.helperConnected;
   providerHeader.textContent = t("providerHeader");
   envHeader.textContent = t("envHeader");
   statusHeader.textContent = t("statusHeader");
@@ -446,8 +455,7 @@ function renderRows() {
       const result = state.scanResults[envVar] || { status: "unknown", value: "" };
       const inputValue = state.inputValues[envVar] || "";
       const isFound = result.status === "found";
-      const isVisible = state.visibleKeys.has(envVar);
-      const shownValue = isFound ? (isVisible ? result.value : maskKey(result.value)) : "";
+      const shownValue = isFound ? result.maskedValue || maskKey(result.value) : "";
       const statusLabel = state.helperConnected ? statusText(result.status) : t("statusHelperRequired");
       const statusClass = state.helperConnected ? result.status : "unknown";
 
@@ -479,7 +487,23 @@ function renderRows() {
         const valueText = document.createElement("span");
         valueText.className = "key-value";
         valueText.textContent = shownValue;
-        valueCell.append(valueText);
+        const commandGrid = renderCommandGrid(envVar, [
+          {
+            kind: "display",
+            platform: "mac",
+            label: t("macDisplayCommand"),
+            text: buildMacDisplayCommand(envVar),
+            buttonText: t("copyMacCommand"),
+          },
+          {
+            kind: "display",
+            platform: "windows",
+            label: t("windowsDisplayCommand"),
+            text: buildWindowsDisplayCommand(envVar),
+            buttonText: t("copyWindowsCommand"),
+          },
+        ]);
+        valueCell.append(valueText, commandGrid);
       } else {
         const input = document.createElement("input");
         input.className = "key-input";
@@ -488,18 +512,35 @@ function renderRows() {
         input.autocomplete = "off";
         input.placeholder = `${t("enterPlaceholder")} ${envVar}`;
         input.value = inputValue;
-        valueCell.append(input);
+        const commandGrid = renderCommandGrid(envVar, [
+          {
+            kind: "set",
+            platform: "mac",
+            label: t("macCommand"),
+            text: buildExportCommand(envVar, inputValue),
+            buttonText: t("copyMacCommand"),
+          },
+          {
+            kind: "set",
+            platform: "windows",
+            label: t("windowsCommand"),
+            text: buildWindowsCommand(envVar, inputValue),
+            buttonText: t("copyWindowsCommand"),
+          },
+        ]);
+
+        valueCell.append(input, commandGrid);
       }
 
       const actionCell = document.createElement("td");
       const actionButton = document.createElement("button");
       actionButton.type = "button";
       if (isFound) {
-        actionButton.className = "secondary";
-        actionButton.dataset.toggleKey = envVar;
-        actionButton.textContent = isVisible ? t("hide") : t("show");
+        actionButton.className = "secondary hidden-action";
+        actionButton.disabled = true;
+        actionButton.setAttribute("aria-hidden", "true");
       } else {
-        actionButton.dataset.saveKey = envVar;
+        actionButton.dataset.copyKey = envVar;
         actionButton.textContent = state.helperConnected ? t("save") : t("copyCommand");
       }
       actionCell.append(actionButton);
@@ -545,9 +586,19 @@ function toggleProviderKeys(providerId) {
 }
 
 async function checkHelper() {
+  state.helperToken = helperToken();
+  if (!state.helperToken) {
+    state.helperBaseUrl = "";
+    setHelperStatus(false);
+    return;
+  }
+
   for (const candidate of helperCandidates()) {
     try {
-      const response = await fetchWithTimeout(`${candidate}/health`, { cache: "no-store" });
+      const response = await fetchWithTimeout(`${candidate}/health`, {
+        cache: "no-store",
+        headers: helperHeaders(),
+      });
       if (response.ok) {
         state.helperBaseUrl = candidate;
         setHelperStatus(true);
@@ -578,7 +629,7 @@ async function scanKeys() {
 
   const response = await fetchWithTimeout(`${state.helperBaseUrl}/api/check`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: helperHeaders(),
     body: JSON.stringify({ envVars }),
   });
 
@@ -590,33 +641,49 @@ async function scanKeys() {
   renderRows();
 }
 
-async function saveKey(envVar) {
+async function copySetupCommand(envVar) {
   const value = state.inputValues[envVar] || "";
   if (!value.trim()) {
     alert(`${t("enterValueFirst")} ${envVar}。`);
     return;
   }
 
-  if (!state.helperConnected) {
-    const command = buildProfileAppendCommand(envVar, value);
-    await navigator.clipboard.writeText(command);
-    alert(`${t("copiedSetupCommand")} ${envVar}。`);
+  await navigator.clipboard.writeText(buildExportCommand(envVar, value));
+  alert(`${t("copiedSetupCommand")} ${envVar}。`);
+}
+
+async function copyTerminalCommand(envVar, platform) {
+  const value = state.inputValues[envVar] || "";
+  if (!value.trim()) {
+    alert(`${t("enterValueFirst")} ${envVar}。`);
     return;
   }
 
-  const response = await fetchWithTimeout(`${state.helperBaseUrl}/api/save`, {
+  await navigator.clipboard.writeText(commandForPlatform(platform, envVar));
+  alert(`${t("copiedSetupCommand")} ${envVar}。`);
+}
+
+async function copyDisplayCommand(envVar, platform = preferredCommandPlatform()) {
+  await navigator.clipboard.writeText(displayCommandForPlatform(platform, envVar));
+  alert(`${t("copiedSetupCommand")} ${envVar}。`);
+}
+
+async function openTerminal() {
+  if (!state.helperConnected) {
+    alert(t("terminalUnavailable"));
+    return;
+  }
+
+  const response = await fetchWithTimeout(`${state.helperBaseUrl}/api/open-terminal`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ envVar, value }),
+    headers: helperHeaders(),
   });
 
   if (!response.ok) {
-    const message = await response.text();
-    throw new Error(message || `${t("unableToSave")} ${envVar}.`);
+    throw new Error(t("terminalOpenFailed"));
   }
 
-  state.inputValues[envVar] = "";
-  await scanKeys();
+  alert(t("terminalOpened"));
 }
 
 function bindEvents() {
@@ -647,6 +714,10 @@ function bindEvents() {
     await scanKeys();
   });
 
+  openTerminalButton.addEventListener("click", () => {
+    openTerminal().catch((error) => alert(error.message));
+  });
+
   languageSelect.addEventListener("change", () => {
     state.language = languageSelect.value;
     renderStaticText();
@@ -665,12 +736,22 @@ function bindEvents() {
     const envVar = event.target.dataset.envInput;
     if (envVar) {
       state.inputValues[envVar] = event.target.value;
+      const row = event.target.closest("tr");
+      if (row) {
+        for (const code of row.querySelectorAll(`[data-command-text-env="${envVar}"]`)) {
+          code.textContent = commandForPlatform(code.dataset.commandTextPlatform, envVar);
+        }
+      }
     }
   });
 
   statusRows.addEventListener("click", (event) => {
     const toggleKey = event.target.dataset.toggleKey;
-    const saveEnvVar = event.target.dataset.saveKey;
+    const copyEnvVar = event.target.dataset.copyKey;
+    const copyCommandEnv = event.target.dataset.copyCommandEnv;
+    const copyCommandPlatform = event.target.dataset.copyCommandPlatform;
+    const copyDisplayEnv = event.target.dataset.copyDisplayEnv;
+    const copyDisplayPlatform = event.target.dataset.copyDisplayPlatform;
 
     if (toggleKey) {
       if (state.visibleKeys.has(toggleKey)) {
@@ -681,8 +762,20 @@ function bindEvents() {
       renderRows();
     }
 
-    if (saveEnvVar) {
-      saveKey(saveEnvVar).catch((error) => alert(error.message));
+    if (copyEnvVar) {
+      copySetupCommand(copyEnvVar).catch((error) => alert(error.message));
+    }
+
+    if (copyCommandEnv && copyCommandPlatform) {
+      copyTerminalCommand(copyCommandEnv, copyCommandPlatform).catch((error) =>
+        alert(error.message),
+      );
+    }
+
+    if (copyDisplayEnv && copyDisplayPlatform) {
+      copyDisplayCommand(copyDisplayEnv, copyDisplayPlatform).catch((error) =>
+        alert(error.message),
+      );
     }
   });
 

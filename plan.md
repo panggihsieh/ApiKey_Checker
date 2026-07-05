@@ -6,6 +6,17 @@ Build a frontend webapp that can be deployed to GitHub Pages. Users can manually
 
 For full local scanning and environment-variable injection, the app will also support an optional local helper server because GitHub Pages cannot read or write local machine environment variables.
 
+## Current Security Decision
+
+The current product boundary is intentionally narrower than the original plan:
+
+- The app checks whether expected API key environment variables exist.
+- Existing API keys are shown only as masked values.
+- The helper does not write API keys to shell profiles.
+- Missing keys generate a pasteable `export NAME="..."` terminal command.
+- Users manually paste and run commands in their own terminal.
+- The helper requires a one-time session token and restricted local origins.
+
 ## Confirmed Product Requirements
 
 - Deployable as a frontend webapp on GitHub Pages.

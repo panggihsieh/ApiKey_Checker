@@ -1,8 +1,13 @@
 #!/usr/bin/env node
 
+const crypto = require("crypto");
 const { spawn } = require("child_process");
 
-const webUrl = `http://localhost:${process.env.API_KEY_CHECKER_WEB_PORT || 5173}`;
+const helperPort = process.env.API_KEY_CHECKER_HELPER_PORT || 8787;
+const webPort = process.env.API_KEY_CHECKER_WEB_PORT || 5173;
+const helperToken = process.env.API_KEY_CHECKER_HELPER_TOKEN || crypto.randomBytes(32).toString("base64url");
+const webUrl = `http://localhost:${webPort}/?helperPort=${helperPort}#helperToken=${helperToken}`;
+const allowedOrigins = [`http://localhost:${webPort}`, `http://127.0.0.1:${webPort}`].join(",");
 let openedWebapp = false;
 
 function openWebapp() {
@@ -29,7 +34,11 @@ const processes = [
 const children = processes.map(([name, script]) => {
   const child = spawn(process.execPath, [script], {
     stdio: ["ignore", "pipe", "pipe"],
-    env: process.env,
+    env: {
+      ...process.env,
+      API_KEY_CHECKER_ALLOWED_ORIGINS: allowedOrigins,
+      API_KEY_CHECKER_HELPER_TOKEN: helperToken,
+    },
   });
 
   child.stdout.on("data", (chunk) => {

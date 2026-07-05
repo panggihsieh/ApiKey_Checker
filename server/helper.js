@@ -2,6 +2,7 @@
 
 const http = require("http");
 const childProcess = require("child_process");
+const crypto = require("crypto");
 const fs = require("fs");
 const os = require("os");
 const path = require("path");
@@ -27,34 +28,76 @@ function configuredShellProfiles() {
   return defaultShellProfiles;
 }
 
-function writableShellProfile() {
-  return configuredShellProfiles()[0] || path.join(os.homedir(), ".zshrc");
+function parseAllowedOrigins(value) {
+  return String(value || "")
+    .split(",")
+    .map((origin) => origin.trim())
+    .filter(Boolean);
 }
 
-function corsHeaders(contentType) {
-  return {
-    "Access-Control-Allow-Origin": "*",
-    "Access-Control-Allow-Headers": "Content-Type",
+function originAllowed(origin, allowedOrigins) {
+  return !origin || allowedOrigins.includes(origin);
+}
+
+function corsHeaders(contentType, request, allowedOrigins) {
+  const origin = request.headers.origin || "";
+  const headers = {
+    "Access-Control-Allow-Headers": "Content-Type, X-API-Key-Checker-Token",
     "Access-Control-Allow-Methods": "GET,POST,OPTIONS",
     "Access-Control-Allow-Private-Network": "true",
+    "Vary": "Origin",
     "Content-Type": contentType,
   };
+
+  if (originAllowed(origin, allowedOrigins)) {
+    headers["Access-Control-Allow-Origin"] = origin || "null";
+  }
+
+  return headers;
 }
 
-function sendJson(response, statusCode, payload) {
+function timingSafeEqual(a, b) {
+  const left = Buffer.from(String(a));
+  const right = Buffer.from(String(b));
+  return left.length === right.length && crypto.timingSafeEqual(left, right);
+}
+
+function tokenValid(request, token) {
+  const supplied = request.headers["x-api-key-checker-token"];
+  return typeof supplied === "string" && timingSafeEqual(supplied, token);
+}
+
+function maskKey(value) {
+  if (!value) return "";
+  if (value.length <= 8) return "****";
+  return `${value.slice(0, 4)}...${value.slice(-4)}`;
+}
+
+function sendJson(response, request, allowedOrigins, statusCode, payload) {
   const body = JSON.stringify(payload);
   response.writeHead(statusCode, {
-    ...corsHeaders("application/json; charset=utf-8"),
+    ...corsHeaders("application/json; charset=utf-8", request, allowedOrigins),
     "Content-Length": Buffer.byteLength(body),
   });
   response.end(body);
 }
 
-function sendText(response, statusCode, message) {
+function sendText(response, request, allowedOrigins, statusCode, message) {
   response.writeHead(statusCode, {
-    ...corsHeaders("text/plain; charset=utf-8"),
+    ...corsHeaders("text/plain; charset=utf-8", request, allowedOrigins),
   });
   response.end(message);
+}
+
+function defaultAllowedOrigins() {
+  const webPort = process.env.API_KEY_CHECKER_WEB_PORT || 5173;
+  return {
+    token: process.env.API_KEY_CHECKER_HELPER_TOKEN || crypto.randomBytes(32).toString("base64url"),
+    allowedOrigins:
+      parseAllowedOrigins(process.env.API_KEY_CHECKER_ALLOWED_ORIGINS).length > 0
+        ? parseAllowedOrigins(process.env.API_KEY_CHECKER_ALLOWED_ORIGINS)
+        : [`http://127.0.0.1:${webPort}`, `http://localhost:${webPort}`],
+  };
 }
 
 function readJson(request) {
@@ -80,10 +123,6 @@ function readJson(request) {
 
 function validateEnvVar(envVar) {
   return typeof envVar === "string" && envVarPattern.test(envVar);
-}
-
-function quoteForShell(value) {
-  return `"${String(value).replace(/\\/g, "\\\\").replace(/"/g, '\\"').replace(/\$/g, "\\$").replace(/`/g, "\\`")}"`;
 }
 
 function unquoteShellValue(value) {
@@ -138,38 +177,28 @@ function readProfileEnv() {
   return { profileEnv, profiles };
 }
 
-function upsertEnvVar(envVar, value) {
-  if (process.platform === "win32" && !process.env.API_KEY_CHECKER_PROFILE) {
-    childProcess.execFileSync("setx", [envVar, value], { windowsHide: true });
-    process.env[envVar] = value;
-    return;
+function openTerminal() {
+  if (process.platform === "darwin") {
+    childProcess.spawn("open", ["-a", "Terminal"], {
+      detached: true,
+      stdio: "ignore",
+    }).unref();
+    return "Terminal";
   }
 
-  const shellProfile = writableShellProfile();
-  const exportLine = `export ${envVar}=${quoteForShell(value)}`;
-  let content = "";
-
-  if (fs.existsSync(shellProfile)) {
-    content = fs.readFileSync(shellProfile, "utf8");
+  if (process.platform === "win32") {
+    childProcess.spawn("cmd.exe", ["/c", "start", "", "cmd.exe"], {
+      detached: true,
+      windowsHide: true,
+      stdio: "ignore",
+    }).unref();
+    return "Command Prompt";
   }
 
-  const linePattern = new RegExp(`^\\s*export\\s+${envVar}=.*$`, "m");
-  const assignmentPattern = new RegExp(`^\\s*${envVar}=.*$`, "m");
-
-  if (linePattern.test(content)) {
-    content = content.replace(linePattern, exportLine);
-  } else if (assignmentPattern.test(content)) {
-    content = content.replace(assignmentPattern, exportLine);
-  } else {
-    const separator = content && !content.endsWith("\n") ? "\n" : "";
-    content = `${content}${separator}${exportLine}\n`;
-  }
-
-  fs.writeFileSync(shellProfile, content, { mode: 0o600 });
-  process.env[envVar] = value;
+  throw new Error("Opening a terminal is supported only on macOS and Windows.");
 }
 
-async function handleCheck(request, response) {
+async function handleCheck(request, response, allowedOrigins) {
   const body = await readJson(request);
   const envVars = Array.isArray(body.envVars) ? body.envVars : [];
   const results = {};
@@ -183,59 +212,62 @@ async function handleCheck(request, response) {
     const value = process.env[envVar] || profileEnv[envVar] || "";
     results[envVar] = {
       status: value ? "found" : "missing",
-      value,
+      maskedValue: maskKey(value),
     };
   }
 
-  sendJson(response, 200, results);
+  sendJson(response, request, allowedOrigins, 200, results);
 }
 
-async function handleSave(request, response) {
-  const body = await readJson(request);
-  const { envVar, value } = body;
+function createHelperServer(options = {}) {
+  const defaults = defaultAllowedOrigins();
+  const token = options.token || defaults.token;
+  const allowedOrigins = options.allowedOrigins || defaults.allowedOrigins;
+  const openTerminalHandler = options.openTerminal || openTerminal;
 
-  if (!validateEnvVar(envVar)) {
-    sendText(response, 400, "Invalid environment variable name.");
-    return;
-  }
-
-  if (typeof value !== "string" || value.trim() === "") {
-    sendText(response, 400, "API key value is required.");
-    return;
-  }
-
-  upsertEnvVar(envVar, value);
-  sendJson(response, 200, { ok: true, envVar, shellProfile: writableShellProfile() });
-}
-
-function createHelperServer() {
   return http.createServer(async (request, response) => {
     try {
+      if (!originAllowed(request.headers.origin || "", allowedOrigins)) {
+        sendText(response, request, allowedOrigins, 403, "Forbidden origin.");
+        return;
+      }
+
       if (request.method === "OPTIONS") {
-        sendText(response, 204, "");
+        sendText(response, request, allowedOrigins, 204, "");
         return;
       }
 
       const url = new URL(request.url, `http://${request.headers.host}`);
 
+      if (!tokenValid(request, token)) {
+        sendText(response, request, allowedOrigins, 401, "Unauthorized.");
+        return;
+      }
+
       if (request.method === "GET" && url.pathname === "/health") {
-        sendJson(response, 200, { ok: true, shellProfiles: configuredShellProfiles() });
+        sendJson(response, request, allowedOrigins, 200, { ok: true, shellProfiles: configuredShellProfiles() });
         return;
       }
 
       if (request.method === "POST" && url.pathname === "/api/check") {
-        await handleCheck(request, response);
+        await handleCheck(request, response, allowedOrigins);
         return;
       }
 
       if (request.method === "POST" && url.pathname === "/api/save") {
-        await handleSave(request, response);
+        sendText(response, request, allowedOrigins, 410, "Saving API keys is disabled. Copy the command and paste it in your terminal.");
         return;
       }
 
-      sendText(response, 404, "Not found.");
+      if (request.method === "POST" && url.pathname === "/api/open-terminal") {
+        const terminal = openTerminalHandler();
+        sendJson(response, request, allowedOrigins, 200, { ok: true, terminal });
+        return;
+      }
+
+      sendText(response, request, allowedOrigins, 404, "Not found.");
     } catch (error) {
-      sendText(response, 500, error.message || "Internal server error.");
+      sendText(response, request, allowedOrigins, 500, error.message || "Internal server error.");
     }
   });
 }
@@ -243,7 +275,10 @@ function createHelperServer() {
 function startHelperServer(options = {}) {
   const port = Number(options.port ?? process.env.API_KEY_CHECKER_HELPER_PORT ?? 8787);
   const host = options.host || "127.0.0.1";
-  const server = createHelperServer();
+  const defaults = defaultAllowedOrigins();
+  const token = options.token || defaults.token;
+  const allowedOrigins = options.allowedOrigins || defaults.allowedOrigins;
+  const server = createHelperServer({ token, allowedOrigins });
 
   return new Promise((resolve, reject) => {
     server.once("error", reject);
@@ -251,8 +286,10 @@ function startHelperServer(options = {}) {
       server.off("error", reject);
       const address = server.address();
       console.log(`API Key Checker helper listening at http://${host}:${address.port}`);
+      console.log(`Allowed origins: ${allowedOrigins.join(", ")}`);
+      console.log(`Helper token: ${token}`);
       console.log(`Shell profiles: ${configuredShellProfiles().join(", ") || "process environment only"}`);
-      resolve({ server, port: address.port, host, shellProfiles: configuredShellProfiles() });
+      resolve({ server, port: address.port, host, token, allowedOrigins, shellProfiles: configuredShellProfiles() });
     });
   });
 }
@@ -266,6 +303,7 @@ if (require.main === module) {
 
 module.exports = {
   createHelperServer,
+  maskKey,
   parseShellProfile,
   startHelperServer,
 };

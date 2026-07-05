@@ -1,3 +1,4 @@
+const crypto = require("crypto");
 const { app, BrowserWindow, shell } = require("electron");
 const { startHelperServer } = require("../server/helper");
 const { startStaticServer } = require("../server/static");
@@ -17,8 +18,13 @@ async function closeServer(server) {
 }
 
 async function createWindow() {
-  const helper = await startHelperServer({ port: 0 });
   const web = await startStaticServer({ port: 0 });
+  const token = crypto.randomBytes(32).toString("base64url");
+  const allowedOrigins = [`http://${web.host}:${web.port}`];
+  if (web.host === "127.0.0.1") {
+    allowedOrigins.push(`http://localhost:${web.port}`);
+  }
+  const helper = await startHelperServer({ port: 0, token, allowedOrigins });
   helperServer = helper.server;
   staticServer = web.server;
 
@@ -41,7 +47,9 @@ async function createWindow() {
     return { action: "deny" };
   });
 
-  await mainWindow.loadURL(`http://${web.host}:${web.port}/?helperPort=${helper.port}`);
+  await mainWindow.loadURL(
+    `http://${web.host}:${web.port}/?helperPort=${helper.port}#helperToken=${token}`,
+  );
 }
 
 app.whenReady().then(async () => {
