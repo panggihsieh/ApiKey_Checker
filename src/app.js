@@ -99,13 +99,13 @@ const messages = {
     providerLabel: "Providers",
     providerCountLabel: "Provider count",
     providerHelp:
-      "Source for the {count} providers: {sourceSummary}. Display logic: the public model catalog is used to score built-in providers by model matches, providers without matches keep their built-in rank, selected providers expand to env vars, only local environment variables are scanned, and no model inference endpoint is called.",
+      "{count} providers source: live public sources OpenRouter Models & Artificial Analysis LLM Leaderboard & LMArena / Arena Leaderboard, reordered by model match count.",
     liveSourceSummary:
       "live public source OpenRouter Models API ({modelCount} models loaded); reference sources Artificial Analysis LLM Leaderboard and LMArena / Arena Leaderboard; fallback source src/providers.js",
     curatedSourceSummary:
       "live public source failed or is unavailable, using fallback source src/providers.js; reference sources Artificial Analysis LLM Leaderboard and LMArena / Arena Leaderboard",
     updatedAt: "Updated: {updatedAt}",
-    showUpdatedAt: true,
+    showUpdatedAt: false,
     selectTop: "Select current {count}",
     clear: "Clear",
     refresh: "Refresh scan",
