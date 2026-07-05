@@ -46,12 +46,13 @@ const messages = {
     providerLabel: "供應商",
     providerCountLabel: "供應商數量",
     providerHelp:
-      "{count} 家資料來源：{sourceSummary}；呈現邏輯：先用公開模型 catalog 計算內建供應商的模型命中數並重新排序，沒有命中的供應商保留內建 rank；多選後展開 env var，只掃描本機環境變數，不呼叫模型推論。",
+      "{count} 家資料來源：即時公開來源 OpenRouter Models ＆ Artificial Analysis LLM Leaderboard ＆LMArena / Arena Leaderboard 依照模型命中數並重新排序。",
     liveSourceSummary:
       "即時公開來源 OpenRouter Models API（已載入 {modelCount} 個模型）；參考來源 Artificial Analysis LLM Leaderboard、LMArena / Arena Leaderboard；fallback 來源 src/providers.js",
     curatedSourceSummary:
       "即時公開來源載入失敗或不可用，使用 fallback 來源 src/providers.js；參考來源 Artificial Analysis LLM Leaderboard、LMArena / Arena Leaderboard",
     updatedAt: "更新時間：{updatedAt}",
+    showUpdatedAt: false,
     selectTop: "選取目前 {count} 家",
     clear: "清除",
     refresh: "重新掃描",
@@ -104,6 +105,7 @@ const messages = {
     curatedSourceSummary:
       "live public source failed or is unavailable, using fallback source src/providers.js; reference sources Artificial Analysis LLM Leaderboard and LMArena / Arena Leaderboard",
     updatedAt: "Updated: {updatedAt}",
+    showUpdatedAt: true,
     selectTop: "Select current {count}",
     clear: "Clear",
     refresh: "Refresh scan",
@@ -172,10 +174,12 @@ function renderProviderHelp() {
     }),
   );
 
-  const updatedAt = document.createElement("strong");
-  updatedAt.className = "updated-at";
-  updatedAt.textContent = formatMessage("updatedAt", { updatedAt: state.catalogUpdatedAt });
-  providerHelp.append(updatedAt, t("sentenceEnd"));
+  if (t("showUpdatedAt")) {
+    const updatedAt = document.createElement("strong");
+    updatedAt.className = "updated-at";
+    updatedAt.textContent = formatMessage("updatedAt", { updatedAt: state.catalogUpdatedAt });
+    providerHelp.append(updatedAt, t("sentenceEnd"));
+  }
 }
 
 function visibleProviders() {
