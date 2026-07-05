@@ -209,7 +209,6 @@ function renderProviders() {
   for (const provider of state.providers) {
     const option = document.createElement("option");
     option.value = provider.id;
-    option.selected = true;
     option.textContent = `${provider.rank}. ${provider.name}`;
     providerSelect.append(option);
   }
