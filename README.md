@@ -54,6 +54,8 @@ GitHub Pages can host the frontend files directly:
 
 Browser security prevents GitHub Pages from reading local environment variables or writing `~/.zshrc`. Without the local helper, the app generates copyable shell commands instead.
 
+Some browsers also block a remote HTTPS GitHub Pages page from calling a local helper over loopback HTTP, even when the helper is running. For reliable local scanning, run `npm run dev` and use the local app at `http://localhost:5173`.
+
 ## Providers
 
 The initial curated provider list includes:
@@ -118,6 +120,8 @@ http://localhost:8787
 ```bash
 API_KEY_CHECKER_PROFILE=/tmp/api-key-checker.zshrc npm run helper
 ```
+
+部分瀏覽器會阻擋遠端 HTTPS GitHub Pages 頁面呼叫本機 loopback HTTP helper，即使 helper 已啟動也可能顯示未連線。若要穩定掃描本機 API key，請執行 `npm run dev` 並使用 `http://localhost:5173` 本機版。
 
 如果 helper 使用自訂 port，請在 WebApp URL 加上相同 port：
 

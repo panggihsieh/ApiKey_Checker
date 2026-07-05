@@ -62,6 +62,8 @@ const messages = {
       "本機 helper 模式已啟用。你可以掃描並儲存這台電腦上的 API key。",
     pagesMode:
       "GitHub Pages 模式已啟用。瀏覽器安全限制會阻擋本機掃描，因此此模式會產生可複製的 shell 指令。",
+    remoteHelperBlocked: "遠端頁可能無法直接連到本機 helper。",
+    openLocalApp: "開啟本機版",
     catalogLabel: "Catalog",
     catalogCurated: "內建精選清單，不連接任何大模型",
     sentenceEnd: "。",
@@ -106,6 +108,8 @@ const messages = {
     localMode: "Local helper mode is active. You can scan and save API keys on this machine.",
     pagesMode:
       "GitHub Pages mode is active. Browser security blocks local scanning, so the app will generate copyable shell commands instead.",
+    remoteHelperBlocked: "The remote page may not be able to reach the local helper directly.",
+    openLocalApp: "Open local app",
     catalogLabel: "Catalog",
     catalogCurated: "Built-in curated list; no model providers are contacted",
     sentenceEnd: ".",
@@ -200,6 +204,14 @@ function helperCandidates() {
   return [...new Set(origins)];
 }
 
+function localAppUrl() {
+  return `http://localhost:5173/?helperPort=${helperPort()}`;
+}
+
+function isRemotePage() {
+  return window.location.protocol === "https:" && window.location.hostname.endsWith("github.io");
+}
+
 async function fetchWithTimeout(url, options = {}) {
   const controller = new AbortController();
   const timeout = window.setTimeout(() => controller.abort(), 1500);
@@ -235,9 +247,26 @@ function setHelperStatus(connected) {
   label.textContent = connected ? t("helperConnected") : t("helperDisconnected");
   helperStatus.append(dot, label);
 
-  modeNotice.textContent = `${connected ? t("localMode") : t("pagesMode")} ${t(
+  renderModeNotice(connected);
+}
+
+function renderModeNotice(connected) {
+  modeNotice.replaceChildren();
+  const modeText = document.createElement("span");
+  modeText.textContent = `${connected ? t("localMode") : t("pagesMode")} ${t(
     "catalogLabel",
   )}: ${catalogText()}${t("sentenceEnd")}`;
+  modeNotice.append(modeText);
+
+  if (!connected && isRemotePage()) {
+    const remoteHint = document.createElement("span");
+    remoteHint.textContent = ` ${t("remoteHelperBlocked")}`;
+    const localLink = document.createElement("a");
+    localLink.className = "notice-action";
+    localLink.href = localAppUrl();
+    localLink.textContent = t("openLocalApp");
+    modeNotice.append(remoteHint, localLink);
+  }
 }
 
 function renderStaticText() {
