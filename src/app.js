@@ -46,7 +46,7 @@ const state = {
   providerLimit: 12,
   catalogSource: "curated",
   catalogModelCount: 0,
-  catalogUpdatedAt: new Date("2026-07-05T00:00:00+08:00"),
+  catalogUpdatedAt: new Date(),
   helperConnected: false,
   helperBaseUrl: "",
   helperToken: "",
@@ -68,7 +68,7 @@ const messages = {
     providerCountLabel: "供應商數量",
     providerHelp:
       "{count} 家依 ProviderScore 排名：先用 Chatbot Arena / Elo 評估模型勝率，再用多維 benchmark 幾何平均補足能力面，最後取每家供應商 Top 3 模型平均分排序；資料不足時沿用內建基準排序。",
-    updatedAt: "更新日期：{updatedAt}",
+    updatedAt: "更新時間：{updatedAt}",
     showUpdatedAt: true,
     selectTop: "選取目前 {count} 家",
     clear: "清除",
@@ -125,7 +125,7 @@ const messages = {
     providerCountLabel: "Provider count",
     providerHelp:
       "{count} providers are ranked by ProviderScore: model strength is scored from Chatbot Arena / Elo plus the geometric mean of benchmark dimensions, then each provider is sorted by the average of its top 3 model scores; built-in rank is used when model data is incomplete.",
-    updatedAt: "Update date: {updatedAt}",
+    updatedAt: "Updated at: {updatedAt}",
     showUpdatedAt: true,
     selectTop: "Select current {count}",
     clear: "Clear",
@@ -184,7 +184,7 @@ messages.zh = {
   providerCountLabel: "Provider 數量",
   providerHelp:
     "依 ProviderScore 排名：先用 Chatbot Arena / Elo 評估模型勝率，再用多維 benchmark 幾何平均補足能力面，最後取每家供應商 Top 3 模型平均分排序；資料不足時沿用內建基準排序。",
-  updatedAt: "更新日期：{updatedAt}",
+  updatedAt: "更新時間：{updatedAt}",
   showUpdatedAt: true,
   selectTop: "選取目前 {count} 個",
   clear: "清除",
@@ -786,7 +786,7 @@ async function loadPublicProviderCatalog() {
   state.providers = curatedProviders;
   state.catalogSource = "curated";
   state.catalogModelCount = 0;
-  state.catalogUpdatedAt = new Date("2026-07-05T00:00:00+08:00");
+  state.catalogUpdatedAt = new Date();
 }
 
 function getSelectedProviders() {
