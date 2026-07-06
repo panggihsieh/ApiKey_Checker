@@ -41,7 +41,7 @@ select {
 }
 
 .app-shell {
-  width: min(1480px, calc(100% - 32px));
+  width: min(1280px, calc(100% - 32px));
   margin: 0 auto;
   padding: 24px 0 36px;
 }
@@ -61,6 +61,8 @@ select {
   display: grid;
   gap: 6px;
   min-width: 0;
+  justify-items: start;
+  text-align: left;
 }
 
 .eyebrow {
@@ -80,11 +82,17 @@ p {
 
 h1 {
   margin-bottom: 0;
+  max-width: 100%;
+  border: 2px solid #f59e0b;
+  border-radius: 6px;
+  background: #111111;
   color: var(--ink);
+  color: #f59e0b;
   font-family: Georgia, "Times New Roman", serif;
   font-size: clamp(1.9rem, 2.8vw, 3.25rem);
-  line-height: 0.95;
-  white-space: nowrap;
+  line-height: 1.05;
+  padding: 8px 12px 10px;
+  text-wrap: balance;
 }
 
 h2 {
@@ -106,7 +114,7 @@ h2 {
   display: flex;
   align-items: stretch;
   align-self: center;
-  justify-content: flex-start;
+  justify-content: flex-end;
   gap: 8px;
   flex-wrap: wrap;
 }
@@ -311,6 +319,7 @@ h2 {
   grid-template-columns: minmax(310px, 360px) minmax(0, 1fr);
   gap: 14px;
   align-items: start;
+  justify-content: center;
 }
 
 .toolbar {
@@ -888,6 +897,7 @@ code {
 .pill.missing {
   background: #f8efd9;
   color: var(--warn);
+  text-transform: none;
 }
 
 .pill.unknown {
@@ -1038,7 +1048,7 @@ code {
 
 @media (max-width: 760px) {
   .app-shell {
-    width: min(100% - 20px, 1480px);
+    width: min(100% - 20px, 1280px);
     padding: 18px 0 28px;
   }
 

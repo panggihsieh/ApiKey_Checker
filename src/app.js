@@ -93,6 +93,7 @@ const messages = {
     doubleClickHint: "雙擊供應商可顯示或隱藏已找到的 API key",
     statusFound: "已找到",
     statusMissing: "缺少",
+    statusMissingDetail: "本地無APIKEY 環境變數設定",
     statusHelperRequired: "需要 helper",
     statusUnknown: "未知",
     enterPlaceholder: "輸入",
@@ -150,6 +151,7 @@ const messages = {
     doubleClickHint: "Double-click a provider to show or hide found API keys",
     statusFound: "found",
     statusMissing: "missing",
+    statusMissingDetail: "No local API key environment variable is set",
     statusHelperRequired: "helper required",
     statusUnknown: "unknown",
     enterPlaceholder: "Enter",
@@ -209,6 +211,7 @@ messages.zh = {
   doubleClickHint: "雙擊 provider 可顯示或隱藏已找到的 API key",
   statusFound: "found",
   statusMissing: "missing",
+  statusMissingDetail: "本地無APIKEY 環境變數設定",
   statusHelperRequired: "需要 helper",
   statusUnknown: "unknown",
   enterPlaceholder: "輸入",
@@ -333,7 +336,7 @@ function providerCountry(provider) {
 }
 function statusText(status) {
   if (status === "found") return t("statusFound");
-  if (status === "missing") return t("statusMissing");
+  if (status === "missing") return `${t("statusMissing")}：${t("statusMissingDetail")}`;
   return t("statusUnknown");
 }
 
