@@ -5,6 +5,7 @@
   "main": "electron/main.js",
   "productName": "API Key Checker",
   "author": "API Key Checker",
+  "license": "MIT",
   "description": "GitHub Pages friendly API key environment variable checker with an optional local helper.",
   "scripts": {
     "start": "electron .",
