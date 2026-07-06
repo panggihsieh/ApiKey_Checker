@@ -110,10 +110,15 @@ test("helper check masks API keys instead of returning full values", async () =>
   }
 });
 
-test("helper save endpoint is disabled", async () => {
+test("helper save endpoint validates and saves API keys through the injected handler", async () => {
+  const saved = [];
   const server = createHelperServer({
     token: "test-token-123456789012345678901234",
     allowedOrigins: ["http://127.0.0.1:5173"],
+    saveEnv: async (envVar, value) => {
+      saved.push({ envVar, value });
+      return "test-target";
+    },
   });
   const port = await listen(server);
 
@@ -127,8 +132,44 @@ test("helper save endpoint is disabled", async () => {
       },
       body: JSON.stringify({ envVar: "OPENAI_API_KEY", value: "sk-test-secret-value" }),
     });
+    const payload = await response.json();
 
-    assert.equal(response.status, 410);
+    assert.equal(response.status, 200);
+    assert.equal(payload.ok, true);
+    assert.equal(payload.envVar, "OPENAI_API_KEY");
+    assert.equal(payload.maskedValue, "sk-t...alue");
+    assert.equal(payload.target, "test-target");
+    assert.deepEqual(saved, [{ envVar: "OPENAI_API_KEY", value: "sk-test-secret-value" }]);
+  } finally {
+    await close(server);
+  }
+});
+
+test("helper save endpoint rejects invalid environment variable names", async () => {
+  let saved = false;
+  const server = createHelperServer({
+    token: "test-token-123456789012345678901234",
+    allowedOrigins: ["http://127.0.0.1:5173"],
+    saveEnv: async () => {
+      saved = true;
+      return "test-target";
+    },
+  });
+  const port = await listen(server);
+
+  try {
+    const response = await fetch(`http://127.0.0.1:${port}/api/save`, {
+      method: "POST",
+      headers: {
+        Origin: "http://127.0.0.1:5173",
+        "Content-Type": "application/json",
+        "X-API-Key-Checker-Token": "test-token-123456789012345678901234",
+      },
+      body: JSON.stringify({ envVar: "OPENAI_API_KEY; echo bad", value: "sk-test-secret-value" }),
+    });
+
+    assert.equal(response.status, 400);
+    assert.equal(saved, false);
   } finally {
     await close(server);
   }

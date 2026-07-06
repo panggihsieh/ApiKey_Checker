@@ -186,12 +186,12 @@ notarization。
 
 - 本機 helper 只監聽 loopback host，不對區網或網際網路開放。
 - 本機 helper 要求一次性 session token；沒有 token 的網頁不能呼叫 `/health`、
-  `/api/check` 或 `/api/open-terminal`；`/api/save` 已停用。
+  `/api/check`、`/api/save` 或 `/api/open-terminal`。
 - CORS 只允許啟動時指定的本機 WebApp origin，不使用 `Access-Control-Allow-Origin: *`。
 - `/api/check` 只回傳 found/missing 與遮蔽後的 key，不回傳完整既有 API key。
 - API key 不寫入 `localStorage` 或 `sessionStorage`。
-- 新輸入的 API key 不送到 helper，只在瀏覽器端產生 macOS / Windows 終端指令，
-  由使用者自行複製並貼到終端執行。
+- 新輸入的 API key 只有在按下儲存時才會送到本機 helper，用來寫入使用者環境變數；
+  未儲存前只在瀏覽器端產生 macOS / Windows 終端指令。
 ---
 
 # API Key Checker
@@ -388,10 +388,11 @@ The built-in provider list currently includes 50 providers:
 
 - The local helper listens only on a loopback host, not on the LAN or internet.
 - The local helper requires a one-time session token; pages without the token cannot
-  call `/health`, `/api/check`, or `/api/open-terminal`; `/api/save` is disabled.
+  call `/health`, `/api/check`, `/api/save`, or `/api/open-terminal`.
 - CORS allows only the locally launched WebApp origin, not `Access-Control-Allow-Origin: *`.
 - `/api/check` returns only found/missing status and masked key text, never full
   existing API key values.
 - API keys are not stored in `localStorage`.
-- Newly entered keys are not sent to the helper; the browser only generates macOS /
-  Windows terminal commands for the user to copy and paste manually.
+- Newly entered keys are sent to the local helper only when the user clicks save,
+  so the helper can write the user environment variable. Before saving, the browser
+  only generates macOS / Windows terminal commands.

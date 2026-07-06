@@ -29,7 +29,13 @@ const contentTypes = {
   ".json": "application/json; charset=utf-8",
   ".svg": "image/svg+xml",
 };
-const publicFiles = new Set(["index.html", "src/app.js", "src/providers.js", "src/styles.css"]);
+const publicFiles = new Set([
+  "index.html",
+  "src/app.js",
+  "src/providers.js",
+  "src/ranking.js",
+  "src/styles.css",
+]);
 
 function send(response, statusCode, contentType, body) {
   response.writeHead(statusCode, {
@@ -52,7 +58,9 @@ function resolveRequestPath(requestUrl) {
   }
 
   const publicPath = relative.split(path.sep).join("/");
-  if (!publicFiles.has(publicPath)) {
+  const isPublicFlag = publicPath.startsWith("src/flags/") && path.extname(publicPath) === ".svg";
+  const isPublicIcon = publicPath.startsWith("icon/") && path.extname(publicPath) === ".svg";
+  if (!publicFiles.has(publicPath) && !isPublicFlag && !isPublicIcon) {
     return null;
   }
 

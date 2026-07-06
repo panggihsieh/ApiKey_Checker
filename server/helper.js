@@ -10,6 +10,7 @@ const path = require("path");
 const envVarPattern = /^[A-Z][A-Z0-9_]*$/;
 const maxRequestBodyBytes = 1024 * 128;
 const maxProfileBytes = 1024 * 256;
+const maxEnvValueBytes = 1024 * 8;
 const defaultShellProfiles = [
   ".zshrc",
   ".zprofile",
@@ -164,6 +165,76 @@ function parseShellProfile(content) {
   return env;
 }
 
+function shellExportValue(value) {
+  return `"${String(value)
+    .replace(/\\/g, "\\\\")
+    .replace(/"/g, '\\"')
+    .replace(/\$/g, "\\$")
+    .replace(/`/g, "\\`")}"`;
+}
+
+function profileForSave() {
+  const profiles = configuredShellProfiles();
+  if (profiles.length > 0) {
+    return profiles[0];
+  }
+
+  return path.join(os.homedir(), ".profile");
+}
+
+function saveEnvToShellProfile(envVar, value) {
+  const profile = profileForSave();
+  let content = "";
+
+  try {
+    const stat = fs.statSync(profile);
+    if (!stat.isFile() || stat.size > maxProfileBytes) {
+      throw new Error("Shell profile is not writable by API Key Checker.");
+    }
+    content = fs.readFileSync(profile, "utf8");
+  } catch (error) {
+    if (error.code !== "ENOENT") {
+      throw error;
+    }
+  }
+
+  const exportLine = `export ${envVar}=${shellExportValue(value)}`;
+  const linePattern = new RegExp(`^(?:export\\s+)?${envVar}=.*$`, "m");
+  const nextContent = linePattern.test(content)
+    ? content.replace(linePattern, exportLine)
+    : `${content}${content.endsWith("\n") || content.length === 0 ? "" : "\n"}${exportLine}\n`;
+
+  fs.mkdirSync(path.dirname(profile), { recursive: true });
+  fs.writeFileSync(profile, nextContent, { encoding: "utf8", mode: 0o600 });
+  return "shell-profile";
+}
+
+function saveEnvToWindowsUser(envVar, value) {
+  return new Promise((resolve, reject) => {
+    const child = childProcess.execFile("setx", [envVar, value], {
+      timeout: 10000,
+      windowsHide: true,
+    });
+    child.on("error", reject);
+    child.on("exit", (code) => {
+      if (code === 0) {
+        resolve("windows-user");
+      } else {
+        reject(new Error("Unable to save Windows user environment variable."));
+      }
+    });
+  });
+}
+
+async function saveEnv(envVar, value) {
+  const target =
+    process.platform === "win32"
+      ? await saveEnvToWindowsUser(envVar, value)
+      : saveEnvToShellProfile(envVar, value);
+  process.env[envVar] = value;
+  return target;
+}
+
 function readProfileEnv() {
   const profileEnv = {};
   const profiles = configuredShellProfiles();
@@ -232,11 +303,36 @@ async function handleCheck(request, response, allowedOrigins) {
   sendJson(response, request, allowedOrigins, 200, results);
 }
 
+async function handleSave(request, response, allowedOrigins, saveEnvHandler) {
+  const body = await readJson(request);
+  const envVar = body.envVar;
+  const value = typeof body.value === "string" ? body.value : "";
+
+  if (!validateEnvVar(envVar)) {
+    sendText(response, request, allowedOrigins, 400, "Invalid environment variable name.");
+    return;
+  }
+
+  if (!value.trim() || value.includes("\0") || Buffer.byteLength(value) > maxEnvValueBytes) {
+    sendText(response, request, allowedOrigins, 400, "Invalid environment variable value.");
+    return;
+  }
+
+  const target = await saveEnvHandler(envVar, value);
+  sendJson(response, request, allowedOrigins, 200, {
+    ok: true,
+    envVar,
+    maskedValue: maskKey(value),
+    target,
+  });
+}
+
 function createHelperServer(options = {}) {
   const defaults = defaultAllowedOrigins();
   const token = options.token || defaults.token;
   const allowedOrigins = options.allowedOrigins || defaults.allowedOrigins;
   const openTerminalHandler = options.openTerminal || openTerminal;
+  const saveEnvHandler = options.saveEnv || saveEnv;
 
   return http.createServer(async (request, response) => {
     try {
@@ -268,7 +364,7 @@ function createHelperServer(options = {}) {
       }
 
       if (request.method === "POST" && url.pathname === "/api/save") {
-        sendText(response, request, allowedOrigins, 410, "Saving API keys is disabled. Copy the command and paste it in your terminal.");
+        await handleSave(request, response, allowedOrigins, saveEnvHandler);
         return;
       }
 

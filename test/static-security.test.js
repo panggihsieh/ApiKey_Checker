@@ -60,3 +60,19 @@ test("static server does not expose non-frontend repository files", async () => 
     await close(server);
   }
 });
+
+test("static server serves bundled flag icons", async () => {
+  const server = createStaticServer();
+  const port = await listen(server);
+
+  try {
+    const response = await fetch(`http://127.0.0.1:${port}/icon/us.svg`);
+    const body = await response.text();
+
+    assert.equal(response.status, 200);
+    assert.match(response.headers.get("content-type"), /image\/svg\+xml/);
+    assert.match(body, /<svg/i);
+  } finally {
+    await close(server);
+  }
+});

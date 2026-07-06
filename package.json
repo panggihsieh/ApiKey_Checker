@@ -1,6 +1,6 @@
 {
   "name": "api-key-checker",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "private": true,
   "main": "electron/main.js",
   "productName": "API Key Checker",
@@ -26,6 +26,7 @@
     "afterPack": "scripts/sign-mac-ad-hoc.js",
     "files": [
       "electron/**/*",
+      "icon/**/*",
       "server/**/*",
       "src/**/*",
       "index.html",
@@ -55,5 +56,8 @@
   "devDependencies": {
     "electron": "^43.0.0",
     "electron-builder": "^26.15.3"
+  },
+  "dependencies": {
+    "flag-icons": "^7.5.0"
   }
 }
