@@ -108,12 +108,45 @@ jobs:
             dist/*.msi
             dist/wixl-project.wxs
 
+  windows-portable:
+    name: Build Windows Portable
+    runs-on: windows-2022
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Check syntax
+        run: npm run check
+
+      - name: Build Portable EXE
+        run: npm run dist:win:portable -- --publish never
+
+      - name: Upload Windows Portable
+        uses: actions/upload-artifact@v4
+        with:
+          name: api-key-checker-windows-portable
+          path: |
+            dist/*portable*.exe
+            dist/*.blockmap
+            dist/latest.yml
+
   release:
     name: Publish GitHub release
     needs:
       - mac
       - windows-exe
       - windows-msi
+      - windows-portable
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/')
 
@@ -137,6 +170,12 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: api-key-checker-windows-msi
+          path: release-assets
+
+      - name: Download Windows Portable artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: api-key-checker-windows-portable
           path: release-assets
 
       - name: Create or update release
