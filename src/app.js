@@ -946,23 +946,33 @@ function renderRows() {
         const valueText = document.createElement("span");
         valueText.className = "key-value";
         valueText.textContent = shownValue;
+        const keyEntry = document.createElement("div");
+        keyEntry.className = "key-entry";
+        const input = document.createElement("input");
+        input.className = "key-input";
+        input.dataset.envInput = envVar;
+        input.type = "password";
+        input.autocomplete = "off";
+        input.placeholder = `${t("enterPlaceholder")} ${envVar}`;
+        input.value = inputValue;
+        keyEntry.append(input);
         const commandGrid = renderCommandGrid(envVar, [
           {
-            kind: "display",
+            kind: "set",
             platform: "mac",
-            label: t("macDisplayCommand"),
-            text: buildMacDisplayCommand(envVar),
+            label: t("macCommand"),
+            text: buildExportCommand(envVar, inputValue),
             buttonText: t("copyMacCommand"),
           },
           {
-            kind: "display",
+            kind: "set",
             platform: "windows",
-            label: t("windowsDisplayCommand"),
-            text: buildWindowsDisplayCommand(envVar),
+            label: t("windowsCommand"),
+            text: buildWindowsCommand(envVar, inputValue),
             buttonText: t("copyWindowsCommand"),
           },
         ]);
-        valueCell.append(valueText, commandGrid);
+        valueCell.append(valueText, keyEntry, commandGrid);
       } else {
         const keyEntry = document.createElement("div");
         keyEntry.className = "key-entry";

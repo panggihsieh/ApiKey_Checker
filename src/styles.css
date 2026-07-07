@@ -924,6 +924,10 @@ code {
   padding: 0 11px;
 }
 
+.key-value + .key-entry {
+  margin-top: 10px;
+}
+
 .save-key-button {
   min-width: 72px;
   background: var(--success);
