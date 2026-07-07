@@ -2,6 +2,7 @@ import { curatedProviders } from "./providers.js?v=20260705-provider-count";
 import { rankProviders } from "./ranking.js?v=20260706-provider-score";
 
 const defaultHelperPort = "8787";
+const autoScanIntervalMs = 10000;
 const languageLabel = document.querySelector("#languageLabel");
 const languageSelect = document.querySelector("#languageSelect");
 const providerSelect = document.querySelector("#providerSelect");
@@ -105,7 +106,7 @@ const messages = {
     terminalOpenFailed: "無法開啟終端。",
     terminalOpened: "已開啟終端。",
     macCommand: "macOS / zsh",
-    windowsCommand: "Windows PowerShell",
+    windowsCommand: "Windows PowerShell (User env)",
     macDisplayCommand: "macOS 顯示",
     windowsDisplayCommand: "Windows 顯示",
     copyMacCommand: "複製 macOS",
@@ -223,7 +224,7 @@ messages.zh = {
   terminalOpenFailed: "無法開啟終端機。",
   terminalOpened: "終端機已開啟。",
   macCommand: "macOS / zsh",
-  windowsCommand: "Windows PowerShell",
+  windowsCommand: "Windows PowerShell（User 環境變數）",
   macDisplayCommand: "macOS 顯示",
   windowsDisplayCommand: "Windows 顯示",
   copyMacCommand: "複製 macOS",
@@ -660,7 +661,8 @@ function powerShellValue(value) {
 }
 
 function buildWindowsCommand(envVar, value) {
-  return `$env:${envVar} = ${powerShellValue(value)}`;
+  const quotedValue = powerShellValue(value);
+  return `[Environment]::SetEnvironmentVariable('${envVar}', ${quotedValue}, 'User'); $env:${envVar} = ${quotedValue}`;
 }
 
 function buildMacDisplayCommand(envVar) {
@@ -668,7 +670,7 @@ function buildMacDisplayCommand(envVar) {
 }
 
 function buildWindowsDisplayCommand(envVar) {
-  return `Write-Output $env:${envVar}`;
+  return `[Environment]::GetEnvironmentVariable('${envVar}', 'User')`;
 }
 
 function commandForPlatform(platform, envVar) {
@@ -803,6 +805,7 @@ function getSelectedEnvVars() {
 
 function setHelperStatus(connected) {
   state.helperConnected = connected;
+  openTerminalButton.disabled = !connected;
   helperStatus.classList.toggle("connected", connected);
   helperStatus.classList.toggle("disconnected", !connected);
   helperStatus.replaceChildren();
@@ -970,13 +973,7 @@ function renderRows() {
         input.autocomplete = "off";
         input.placeholder = `${t("enterPlaceholder")} ${envVar}`;
         input.value = inputValue;
-        const saveButton = document.createElement("button");
-        saveButton.type = "button";
-        saveButton.className = "save-key-button";
-        saveButton.dataset.saveKey = envVar;
-        saveButton.disabled = !state.helperConnected;
-        saveButton.textContent = t("saveApiKey");
-        keyEntry.append(input, saveButton);
+        keyEntry.append(input);
         const commandGrid = renderCommandGrid(envVar, [
           {
             kind: "set",
@@ -1093,6 +1090,14 @@ async function scanKeys() {
 
   state.scanResults = await response.json();
   renderRows();
+}
+
+function scheduleScanIfUseful() {
+  if (!state.helperConnected || document.hidden || getSelectedEnvVars().length === 0) {
+    return;
+  }
+
+  scanKeys().catch((error) => alert(error.message));
 }
 
 async function saveApiKey(envVar) {
@@ -1223,6 +1228,12 @@ function bindEvents() {
   exportSvgButton?.addEventListener("click", exportSvg);
 
   exportCsvButton?.addEventListener("click", exportCsv);
+
+  window.addEventListener("focus", scheduleScanIfUseful);
+
+  document.addEventListener("visibilitychange", scheduleScanIfUseful);
+
+  window.setInterval(scheduleScanIfUseful, autoScanIntervalMs);
 
   providerCountSelect.addEventListener("change", () => {
     state.providerLimit = Number(providerCountSelect.value);
