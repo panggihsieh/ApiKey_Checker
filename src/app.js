@@ -803,6 +803,7 @@ function getSelectedEnvVars() {
 
 function setHelperStatus(connected) {
   state.helperConnected = connected;
+  openTerminalButton.disabled = !connected;
   helperStatus.classList.toggle("connected", connected);
   helperStatus.classList.toggle("disconnected", !connected);
   helperStatus.replaceChildren();
