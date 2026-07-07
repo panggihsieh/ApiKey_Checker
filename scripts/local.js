@@ -1,16 +1,34 @@
 #!/usr/bin/env node
 
 const crypto = require("crypto");
+const net = require("net");
 const { spawn } = require("child_process");
 
-const helperPort = process.env.API_KEY_CHECKER_HELPER_PORT || 8787;
-const webPort = process.env.API_KEY_CHECKER_WEB_PORT || 5173;
 const helperToken = process.env.API_KEY_CHECKER_HELPER_TOKEN || crypto.randomBytes(32).toString("base64url");
-const webUrl = `http://localhost:${webPort}/?helperPort=${helperPort}#helperToken=${helperToken}`;
-const allowedOrigins = [`http://localhost:${webPort}`, `http://127.0.0.1:${webPort}`].join(",");
 let openedWebapp = false;
+let children = [];
 
-function openWebapp() {
+function listenOnce(port, host = "127.0.0.1") {
+  return new Promise((resolve) => {
+    const server = net.createServer();
+    server.once("error", () => resolve(null));
+    server.listen(Number(port), host, () => {
+      const address = server.address();
+      server.close(() => resolve(address.port));
+    });
+  });
+}
+
+async function availablePort(preferredPort) {
+  const preferred = await listenOnce(preferredPort);
+  if (preferred) {
+    return preferred;
+  }
+
+  return listenOnce(0);
+}
+
+function openWebapp(webUrl) {
   if (openedWebapp) {
     return;
   }
@@ -26,26 +44,17 @@ function openWebapp() {
   opener.unref();
 }
 
-const processes = [
-  ["web", "server/static.js"],
-  ["helper", "server/helper.js"],
-];
-
-const children = processes.map(([name, script]) => {
+function spawnChild(name, script, env) {
   const child = spawn(process.execPath, [script], {
     stdio: ["ignore", "pipe", "pipe"],
-    env: {
-      ...process.env,
-      API_KEY_CHECKER_ALLOWED_ORIGINS: allowedOrigins,
-      API_KEY_CHECKER_HELPER_TOKEN: helperToken,
-    },
+    env,
   });
 
   child.stdout.on("data", (chunk) => {
     const output = chunk.toString();
     process.stdout.write(`[${name}] ${output}`);
     if (name === "web" && output.includes("API Key Checker webapp listening")) {
-      openWebapp();
+      openWebapp(env.API_KEY_CHECKER_WEB_URL);
     }
   });
 
@@ -61,7 +70,28 @@ const children = processes.map(([name, script]) => {
   });
 
   return child;
-});
+}
+
+async function main() {
+  const helperPort = await availablePort(process.env.API_KEY_CHECKER_HELPER_PORT || 8787);
+  const webPort = await availablePort(process.env.API_KEY_CHECKER_WEB_PORT || 5173);
+  const webUrl = `http://localhost:${webPort}/?helperPort=${helperPort}#helperToken=${helperToken}`;
+  const allowedOrigins = [`http://localhost:${webPort}`, `http://127.0.0.1:${webPort}`].join(",");
+  const env = {
+    ...process.env,
+    API_KEY_CHECKER_ALLOWED_ORIGINS: allowedOrigins,
+    API_KEY_CHECKER_HELPER_TOKEN: helperToken,
+    API_KEY_CHECKER_HELPER_PORT: String(helperPort),
+    API_KEY_CHECKER_WEB_PORT: String(webPort),
+    API_KEY_CHECKER_WEB_URL: webUrl,
+  };
+
+  console.log(`API Key Checker local URL: ${webUrl}`);
+  children = [
+    spawnChild("web", "server/static.js", env),
+    spawnChild("helper", "server/helper.js", env),
+  ];
+}
 
 function shutdown() {
   for (const child of children) {
@@ -79,4 +109,10 @@ process.on("SIGINT", () => {
 process.on("SIGTERM", () => {
   shutdown();
   process.exit(0);
+});
+
+main().catch((error) => {
+  console.error(error);
+  shutdown();
+  process.exit(1);
 });
