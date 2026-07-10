@@ -1,0 +1,140 @@
+<!doctype html>
+<html lang="zh-Hant">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'self'; base-uri 'none'; object-src 'none'; frame-ancestors 'none'; form-action 'none'; script-src 'self'; style-src 'self'; connect-src 'self' http://127.0.0.1:* http://localhost:*"
+    />
+    <title>API Key Checker</title>
+    <link rel="stylesheet" href="./src/styles.css?v=20260708-refresh-position" />
+  </head>
+  <body>
+    <main class="app-shell">
+      <header class="app-header">
+        <div class="title-block">
+          <h1>API Key Checker : 本地AI金鑰探測器</h1>
+        </div>
+
+        <div class="header-action-row">
+        <label class="provider-count-control header-provider-count" for="providerCountSelect">
+          <span id="providerCountLabel">Provider count</span>
+          <select id="providerCountSelect" aria-label="Provider count">
+            <option value="12" selected>12</option>
+            <option value="24">24</option>
+            <option value="50">50</option>
+          </select>
+          <span class="country-flags" aria-label="Provider country references">
+            <span class="country-item" title="United States">
+              <span class="country-flag flag-us" role="img" aria-label="United States"></span>
+              <span class="country-code provider-country-usa">US</span>
+            </span>
+            <span class="country-item" title="China">
+              <span class="country-flag flag-cn" role="img" aria-label="China"></span>
+              <span class="country-code provider-country-china">CN</span>
+            </span>
+            <span class="country-item" title="Singapore">
+              <span class="country-flag flag-sg" role="img" aria-label="Singapore"></span>
+              <span class="country-code provider-country-singapore">SG</span>
+            </span>
+            <span class="country-item" title="United Kingdom">
+              <span class="country-flag flag-gb" role="img" aria-label="United Kingdom"></span>
+              <span class="country-code provider-country-uk">UK</span>
+            </span>
+            <span class="country-item" title="Korea">
+              <span class="country-flag flag-kr" role="img" aria-label="Korea"></span>
+              <span class="country-code provider-country-korea">KR</span>
+            </span>
+            <span class="country-item" title="France">
+              <span class="country-flag flag-fr" role="img" aria-label="France"></span>
+              <span class="country-code provider-country-france">FR</span>
+            </span>
+            <span class="country-item" title="Canada">
+              <span class="country-flag flag-ca" role="img" aria-label="Canada"></span>
+              <span class="country-code provider-country-canada">CA</span>
+            </span>
+          </span>
+        </label>
+
+        <div class="top-refresh-action">
+          <button id="refreshButton" type="button" class="refresh-spotlight">重新掃描</button>
+        </div>
+
+        <div class="header-controls">
+          <label class="language-control" for="languageSelect">
+            <span id="languageLabel">Language</span>
+            <select id="languageSelect" aria-label="Language">
+              <option value="zh" selected>中文</option>
+              <option value="en">English</option>
+            </select>
+          </label>
+          <label class="sound-control" for="soundToggle">
+            <span>Sound</span>
+            <input id="soundToggle" type="checkbox" checked />
+          </label>
+          <div class="helper-status" id="helperStatus">
+            <span class="status-dot"></span>
+            <span>Checking helper...</span>
+          </div>
+        </div>
+        </div>
+      </header>
+
+      <section class="notice" id="modeNotice" hidden></section>
+
+      <div class="workspace-layout">
+        <aside class="toolbar" id="toolbarSection" aria-label="Provider controls">
+          <div class="provider-heading">
+            <label class="field-label" id="providerLabel" for="providerSelect">Providers</label>
+            <p class="provider-help" id="providerHelp"></p>
+          </div>
+
+          <select id="providerSelect" class="provider-select" multiple size="14"></select>
+          <div class="toolbar-actions">
+            <button id="openTerminalButton" type="button" class="secondary">Open terminal</button>
+            <button id="selectTopButton" type="button">Select current 12</button>
+            <button id="clearButton" type="button" class="secondary">Clear</button>
+          </div>
+        </aside>
+
+        <section class="research-panel" aria-label="Academic analysis workspace">
+          <section class="country-pie-panel" aria-label="Provider country distribution">
+            <div class="country-pie-heading">
+              <h2>Provider Country Distribution</h2>
+              <span id="countryPieTotal">0 providers</span>
+            </div>
+            <div class="country-pie-layout">
+              <svg
+                id="countryPieChart"
+                class="country-pie-chart"
+                viewBox="0 0 220 220"
+                role="img"
+                aria-label="Provider country pie chart"
+              ></svg>
+              <div id="countryPieLegend" class="country-pie-legend"></div>
+            </div>
+          </section>
+
+          <section class="status-panel" id="statusPanel" aria-label="Selected provider API key status">
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th id="providerHeader">Provider</th>
+                    <th id="envHeader">Environment variable</th>
+                    <th id="statusHeader">Status</th>
+                    <th id="valueHeader">Value</th>
+                  </tr>
+                </thead>
+                <tbody id="statusRows"></tbody>
+              </table>
+            </div>
+          </section>
+        </section>
+      </div>
+    </main>
+
+    <script type="module" src="./src/app.js?v=20260708-refresh-position"></script>
+  </body>
+</html>

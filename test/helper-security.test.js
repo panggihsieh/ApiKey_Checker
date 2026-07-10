@@ -1,6 +1,6 @@
 const assert = require("node:assert/strict");
 const test = require("node:test");
-const { createHelperServer, startHelperServer } = require("../server/helper");
+const { createHelperServer, resolveEnvValue, startHelperServer } = require("../server/helper");
 
 function listen(server) {
   return new Promise((resolve, reject) => {
@@ -141,6 +141,17 @@ test("helper check reads fresh environment values through the injected reader", 
   } finally {
     await close(server);
   }
+});
+
+test("helper prefers fresh persistent values over stale launch environment", () => {
+  const value = resolveEnvValue("DEEPSEEK_API_KEY", {
+    profileEnv: {},
+    windowsUserEnv: "sk-new-user-value",
+    windowsSystemEnv: "",
+    processEnv: { DEEPSEEK_API_KEY: "sk-old-process-value" },
+  });
+
+  assert.equal(value, "sk-new-user-value");
 });
 
 test("helper save endpoint validates and saves API keys through the injected handler", async () => {

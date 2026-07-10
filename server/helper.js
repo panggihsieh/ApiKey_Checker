@@ -303,16 +303,32 @@ async function readWindowsRegistryEnv(hivePath, envVar) {
   }
 }
 
-async function readEnvValue(envVar, profileEnv) {
+function resolveEnvValue(envVar, sources) {
   return (
-    process.env[envVar] ||
-    profileEnv[envVar] ||
-    (await readWindowsRegistryEnv("HKCU\\Environment", envVar)) ||
-    (await readWindowsRegistryEnv(
-      "HKLM\\SYSTEM\\CurrentControlSet\\Control\\Session Manager\\Environment",
-      envVar,
-    )) ||
+    sources.profileEnv?.[envVar] ||
+    sources.windowsUserEnv ||
+    sources.windowsSystemEnv ||
+    sources.processEnv?.[envVar] ||
     ""
+  );
+}
+
+async function readEnvValue(envVar, profileEnv) {
+  const windowsUserEnv = await readWindowsRegistryEnv("HKCU\\Environment", envVar);
+  const windowsSystemEnv = await readWindowsRegistryEnv(
+    "HKLM\\SYSTEM\\CurrentControlSet\\Control\\Session Manager\\Environment",
+    envVar,
+  );
+
+  // Persistent sources are read fresh on each scan. process.env is only the
+  // helper's launch-time snapshot, so it can be stale after a key is changed.
+  return (
+    resolveEnvValue(envVar, {
+      profileEnv,
+      windowsUserEnv,
+      windowsSystemEnv,
+      processEnv: process.env,
+    })
   );
 }
 
@@ -469,5 +485,6 @@ module.exports = {
   createHelperServer,
   maskKey,
   parseShellProfile,
+  resolveEnvValue,
   startHelperServer,
 };
