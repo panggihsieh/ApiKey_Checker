@@ -24,7 +24,7 @@ if (-not $vs) {
 $devcmd = Join-Path $vs "Common7\Tools\VsDevCmd.bat"
 $source = Join-Path $cppRoot "src\main.cpp"
 $include = $generated
-$cmd = "`"$devcmd`" -arch=x64 && cl /nologo /std:c++17 /EHsc /O2 /MT /DWIN32_LEAN_AND_MEAN /I `"$include`" `"$source`" /Fo:`"$object`" /Fe:`"$output`" ws2_32.lib advapi32.lib shell32.lib bcrypt.lib user32.lib"
+$cmd = "`"$devcmd`" -arch=x64 && cl /nologo /std:c++17 /EHsc /O2 /MT /DWIN32_LEAN_AND_MEAN /I `"$include`" `"$source`" /Fo:`"$object`" /Fe:`"$output`" ws2_32.lib advapi32.lib shell32.lib bcrypt.lib user32.lib /link /SUBSYSTEM:WINDOWS"
 
 cmd /c $cmd
 if ($LASTEXITCODE -ne 0) {

@@ -12,7 +12,6 @@
 #include <cstdint>
 #include <cstdlib>
 #include <functional>
-#include <iostream>
 #include <map>
 #include <mutex>
 #include <optional>
@@ -28,7 +27,13 @@ namespace {
 
 constexpr std::size_t kMaxRequestBodyBytes = 1024 * 128;
 constexpr std::size_t kMaxEnvValueBytes = 1024 * 8;
-HANDLE gStopEvent = nullptr;
+constexpr UINT kTrayIconId = 1;
+constexpr UINT kTrayCallbackMessage = WM_APP + 1;
+constexpr UINT kOpenCommand = 1001;
+constexpr UINT kExitCommand = 1002;
+constexpr wchar_t kTrayWindowClass[] = L"ApiKeyCheckerCppTray";
+std::string gAppUrl;
+NOTIFYICONDATAW gTrayIcon{};
 
 struct HttpRequest {
   std::string method;
@@ -799,34 +804,128 @@ std::string buildUrl(unsigned short webPort, unsigned short helperPort, const st
   return url.str();
 }
 
-BOOL WINAPI consoleHandler(DWORD controlType) {
-  switch (controlType) {
-    case CTRL_C_EVENT:
-    case CTRL_CLOSE_EVENT:
-    case CTRL_BREAK_EVENT:
-    case CTRL_SHUTDOWN_EVENT:
-      if (gStopEvent) {
-        SetEvent(gStopEvent);
-      }
-      return TRUE;
-    default:
-      return FALSE;
+void openApp() {
+  if (!gAppUrl.empty()) {
+    ShellExecuteA(nullptr, "open", gAppUrl.c_str(), nullptr, nullptr, SW_SHOWNORMAL);
   }
+}
+
+void removeTrayIcon() {
+  if (gTrayIcon.hWnd) {
+    Shell_NotifyIconW(NIM_DELETE, &gTrayIcon);
+    gTrayIcon.hWnd = nullptr;
+  }
+}
+
+void showTrayMenu(HWND window) {
+  HMENU menu = CreatePopupMenu();
+  if (!menu) {
+    return;
+  }
+
+  AppendMenuW(menu, MF_STRING, kOpenCommand, L"Open API Key Checker");
+  AppendMenuW(menu, MF_SEPARATOR, 0, nullptr);
+  AppendMenuW(menu, MF_STRING, kExitCommand, L"Exit");
+
+  POINT cursor{};
+  GetCursorPos(&cursor);
+  SetForegroundWindow(window);
+  TrackPopupMenu(menu, TPM_RIGHTBUTTON | TPM_BOTTOMALIGN, cursor.x, cursor.y, 0, window, nullptr);
+  DestroyMenu(menu);
+  PostMessageW(window, WM_NULL, 0, 0);
+}
+
+LRESULT CALLBACK trayWindowProc(HWND window, UINT message, WPARAM wParam, LPARAM lParam) {
+  if (message == kTrayCallbackMessage) {
+    switch (LOWORD(lParam)) {
+      case WM_LBUTTONDBLCLK:
+        openApp();
+        return 0;
+      case WM_RBUTTONUP:
+      case WM_CONTEXTMENU:
+        showTrayMenu(window);
+        return 0;
+      default:
+        return 0;
+    }
+  }
+
+  switch (message) {
+    case WM_COMMAND:
+      if (LOWORD(wParam) == kOpenCommand) {
+        openApp();
+      } else if (LOWORD(wParam) == kExitCommand) {
+        DestroyWindow(window);
+      }
+      return 0;
+    case WM_CLOSE:
+      DestroyWindow(window);
+      return 0;
+    case WM_DESTROY:
+      removeTrayIcon();
+      PostQuitMessage(0);
+      return 0;
+    default:
+      return DefWindowProcW(window, message, wParam, lParam);
+  }
+}
+
+HWND createTrayWindow(HINSTANCE instance) {
+  WNDCLASSW windowClass{};
+  windowClass.lpfnWndProc = trayWindowProc;
+  windowClass.hInstance = instance;
+  windowClass.hIcon = LoadIconW(nullptr, MAKEINTRESOURCEW(32512));
+  windowClass.lpszClassName = kTrayWindowClass;
+  if (!RegisterClassW(&windowClass)) {
+    return nullptr;
+  }
+
+  HWND window = CreateWindowExW(
+      0,
+      kTrayWindowClass,
+      L"API Key Checker cpp",
+      WS_OVERLAPPEDWINDOW,
+      CW_USEDEFAULT,
+      CW_USEDEFAULT,
+      CW_USEDEFAULT,
+      CW_USEDEFAULT,
+      nullptr,
+      nullptr,
+      instance,
+      nullptr);
+  if (!window) {
+    return nullptr;
+  }
+
+  gTrayIcon.cbSize = sizeof(gTrayIcon);
+  gTrayIcon.hWnd = window;
+  gTrayIcon.uID = kTrayIconId;
+  gTrayIcon.uFlags = NIF_MESSAGE | NIF_ICON | NIF_TIP;
+  gTrayIcon.uCallbackMessage = kTrayCallbackMessage;
+  gTrayIcon.hIcon = windowClass.hIcon;
+  lstrcpynW(gTrayIcon.szTip, L"API Key Checker cpp", ARRAYSIZE(gTrayIcon.szTip));
+  if (!Shell_NotifyIconW(NIM_ADD, &gTrayIcon)) {
+    gTrayIcon.hWnd = nullptr;
+    DestroyWindow(window);
+    return nullptr;
+  }
+
+  gTrayIcon.uVersion = NOTIFYICON_VERSION_4;
+  Shell_NotifyIconW(NIM_SETVERSION, &gTrayIcon);
+  return window;
 }
 
 }  // namespace
 
-int main() {
+int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int) {
   WSADATA wsa{};
   if (WSAStartup(MAKEWORD(2, 2), &wsa) != 0) {
-    std::cerr << "Unable to initialize Winsock.\n";
+    MessageBoxA(nullptr, "Unable to initialize Winsock.", "API Key Checker cpp", MB_OK | MB_ICONERROR);
     return 1;
   }
 
+  int exitCode = 0;
   try {
-    gStopEvent = CreateEventW(nullptr, TRUE, FALSE, nullptr);
-    SetConsoleCtrlHandler(consoleHandler, TRUE);
-
     std::string token = randomToken();
     TcpServer staticServer(staticResponse);
     staticServer.start();
@@ -839,22 +938,29 @@ int main() {
     TcpServer helperServer(helperHandler);
     helperServer.start();
 
-    std::string url = buildUrl(staticServer.port(), helperServer.port(), token);
-    std::cout << "API Key Checker cpp portable running at:\n" << url << "\n";
-    std::cout << "Press Ctrl+C or close this window to stop.\n";
-    std::cout << std::flush;
-    char noOpen[8] = {};
-    if (GetEnvironmentVariableA("API_KEY_CHECKER_NO_OPEN", noOpen, sizeof(noOpen)) == 0 || std::string(noOpen) != "1") {
-      ShellExecuteA(nullptr, "open", url.c_str(), nullptr, nullptr, SW_SHOWNORMAL);
+    gAppUrl = buildUrl(staticServer.port(), helperServer.port(), token);
+    HWND trayWindow = createTrayWindow(instance);
+    if (!trayWindow) {
+      throw std::runtime_error("Unable to create the system tray icon.");
     }
 
-    WaitForSingleObject(gStopEvent, INFINITE);
+    char noOpen[8] = {};
+    if (GetEnvironmentVariableA("API_KEY_CHECKER_NO_OPEN", noOpen, sizeof(noOpen)) == 0 || std::string(noOpen) != "1") {
+      openApp();
+    }
+
+    MSG message{};
+    while (GetMessageW(&message, nullptr, 0, 0) > 0) {
+      TranslateMessage(&message);
+      DispatchMessageW(&message);
+    }
+    exitCode = static_cast<int>(message.wParam);
   } catch (const std::exception& error) {
-    std::cerr << error.what() << "\n";
-    WSACleanup();
-    return 1;
+    removeTrayIcon();
+    MessageBoxA(nullptr, error.what(), "API Key Checker cpp", MB_OK | MB_ICONERROR);
+    exitCode = 1;
   }
 
   WSACleanup();
-  return 0;
+  return exitCode;
 }

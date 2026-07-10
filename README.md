@@ -66,6 +66,13 @@ token；建議使用 `npm run dev` 或桌面版自動產生 token，不要手動
 http://localhost:5173/?helperPort=8788#helperToken=...
 ```
 
+## v0.1.5 變更
+
+- Windows `normal`、`rust`、`cpp` 均為單一 portable GUI `.exe`，啟動時不再顯示 Console。
+- Rust/Tauri release 改用 Windows GUI subsystem。
+- cpp 版新增系統匣選單，可重新開啟介面或正常結束背景 helper。
+- App 內的「開啟終端」功能保留，僅在使用者主動點擊時開啟 PowerShell。
+
 ## v0.1.4 變更
 
 - 提供 `normal`、`rust`、`cpp` 三種 Windows x64 portable 版本。
@@ -262,6 +269,13 @@ the token is generated automatically, and do not expose the helper manually:
 ```text
 http://localhost:5173/?helperPort=8788#helperToken=...
 ```
+
+## v0.1.5 Changes
+
+- All Windows `normal`, `rust`, and `cpp` editions are single portable GUI executables with no console at startup.
+- Rust/Tauri release builds now use the Windows GUI subsystem.
+- The cpp edition now provides a system tray menu to reopen the UI or stop the background helper cleanly.
+- The in-app Open terminal command remains available and opens PowerShell only when explicitly requested.
 
 ## v0.1.4 Changes
 
