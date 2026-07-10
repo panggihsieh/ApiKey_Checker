@@ -1,6 +1,7 @@
 node_modules/
 dist/
 downloads/
+release/
 rust/node_modules/
 rust/target/
 cpp/generated/
