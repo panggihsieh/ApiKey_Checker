@@ -1,6 +1,6 @@
 {
   "name": "api-key-checker-rust",
-  "version": "0.1.3",
+  "version": "0.1.4",
   "private": true,
   "type": "module",
   "scripts": {
@@ -8,8 +8,9 @@
     "tauri": "tauri",
     "dev": "tauri dev",
     "build": "tauri build",
+    "build:dmg": "tauri build --bundles dmg",
     "build:exe": "tauri build --bundles nsis",
-    "build:portable": "cargo build -p api-key-checker-tauri --release && powershell -NoProfile -ExecutionPolicy Bypass -Command \"New-Item -ItemType Directory -Force target/release/bundle/portable | Out-Null; Copy-Item target/release/api-key-checker-tauri.exe 'target/release/bundle/portable/API Key Checker rust_release Portable.exe' -Force\""
+    "build:portable": "powershell -NoProfile -ExecutionPolicy Bypass -File build-portable.ps1"
   },
   "devDependencies": {
     "@tauri-apps/cli": "^2.0.0"

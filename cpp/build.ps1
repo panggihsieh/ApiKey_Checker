@@ -5,7 +5,8 @@ $repoRoot = Resolve-Path (Join-Path $cppRoot "..")
 $dist = Join-Path $cppRoot "dist"
 $generated = Join-Path $cppRoot "generated"
 $build = Join-Path $cppRoot "build"
-$output = Join-Path $dist "API Key Checker Cplus2 Portable.exe"
+$version = (Get-Content -Raw (Join-Path $repoRoot "package.json") | ConvertFrom-Json).version
+$output = Join-Path $dist "API-Key-Checker-$version-cpp-windows-x64-portable.exe"
 $object = Join-Path $build "main.obj"
 
 New-Item -ItemType Directory -Force $dist | Out-Null

@@ -840,7 +840,7 @@ int main() {
     helperServer.start();
 
     std::string url = buildUrl(staticServer.port(), helperServer.port(), token);
-    std::cout << "API Key Checker Cplus2 portable running at:\n" << url << "\n";
+    std::cout << "API Key Checker cpp portable running at:\n" << url << "\n";
     std::cout << "Press Ctrl+C or close this window to stop.\n";
     std::cout << std::flush;
     char noOpen[8] = {};

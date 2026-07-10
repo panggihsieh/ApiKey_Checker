@@ -1,4 +1,4 @@
-name: Desktop installers
+name: Desktop portable releases
 
 on:
   workflow_dispatch:
@@ -10,8 +10,8 @@ permissions:
   contents: write
 
 jobs:
-  mac:
-    name: Build macOS DMG
+  mac-normal:
+    name: Build normal macOS portable DMG
     runs-on: macos-14
 
     steps:
@@ -33,14 +33,60 @@ jobs:
       - name: Build DMG
         run: npm run dist:mac -- --publish never
 
-      - name: Upload DMG
+      - name: Upload normal portable DMG
         uses: actions/upload-artifact@v4
         with:
-          name: api-key-checker-macos
-          path: dist/*.dmg
+          name: api-key-checker-normal-mac-portable
+          path: dist/*-normal-mac-*-portable.dmg
 
-  windows-portable:
-    name: Build Windows Portable
+  mac-rust:
+    name: Build Rust macOS portable DMG
+    runs-on: macos-14
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: rust/package-lock.json
+
+      - name: Setup Rust
+        run: rustup default stable
+
+      - name: Install Tauri dependencies
+        working-directory: rust
+        run: npm ci
+
+      - name: Test Rust workspace
+        working-directory: rust
+        run: cargo test --workspace
+
+      - name: Build Rust portable DMG
+        working-directory: rust
+        run: |
+          npm run build:dmg
+          VERSION=$(node -p "require('./package.json').version")
+          case "$(uname -m)" in
+            arm64) ARCH=arm64 ;;
+            x86_64) ARCH=x64 ;;
+            *) ARCH=$(uname -m) ;;
+          esac
+          SOURCE=$(find target/release/bundle/dmg -maxdepth 1 -type f -name '*.dmg' | head -n 1)
+          test -n "$SOURCE"
+          mv "$SOURCE" "target/release/bundle/dmg/API-Key-Checker-${VERSION}-rust-mac-${ARCH}-portable.dmg"
+
+      - name: Upload Rust portable DMG
+        uses: actions/upload-artifact@v4
+        with:
+          name: api-key-checker-rust-mac-portable
+          path: rust/target/release/bundle/dmg/*-rust-mac-*-portable.dmg
+
+  windows-normal:
+    name: Build normal Windows portable
     runs-on: windows-2022
 
     steps:
@@ -62,14 +108,14 @@ jobs:
       - name: Build Portable EXE
         run: npm run dist:win:portable -- --publish never
 
-      - name: Upload Windows Portable
+      - name: Upload normal Windows portable
         uses: actions/upload-artifact@v4
         with:
-          name: api-key-checker-windows-portable
-          path: dist/*portable*.exe
+          name: api-key-checker-normal-windows-portable
+          path: dist/*-normal-windows-*-portable.exe
 
-  windows-tauri:
-    name: Build Windows Tauri EXE
+  windows-rust:
+    name: Build Rust Windows portable
     runs-on: windows-2022
 
     steps:
@@ -94,24 +140,18 @@ jobs:
         working-directory: rust
         run: cargo test --workspace
 
-      - name: Build Tauri installer
-        working-directory: rust
-        run: npm run build:exe
-
-      - name: Build Tauri portable
+      - name: Build Rust portable
         working-directory: rust
         run: npm run build:portable
 
-      - name: Upload Windows Tauri EXE
+      - name: Upload Rust Windows portable
         uses: actions/upload-artifact@v4
         with:
-          name: api-key-checker-windows-rust-release
-          path: |
-            rust/target/release/bundle/nsis/*.exe
-            rust/target/release/bundle/portable/*.exe
+          name: api-key-checker-rust-windows-portable
+          path: rust/target/release/bundle/portable/*-rust-windows-*-portable.exe
 
-  windows-cplus2:
-    name: Build Windows Cplus2 Portable
+  windows-cpp:
+    name: Build cpp Windows portable
     runs-on: windows-2022
 
     steps:
@@ -124,22 +164,23 @@ jobs:
           node-version: 24
           cache: npm
 
-      - name: Build Cplus2 portable
+      - name: Build cpp portable
         run: npm run cpp:build:portable
 
-      - name: Upload Windows Cplus2 Portable
+      - name: Upload cpp Windows portable
         uses: actions/upload-artifact@v4
         with:
-          name: api-key-checker-windows-Cplus2-portable
-          path: cpp/dist/*Cplus2*.exe
+          name: api-key-checker-cpp-windows-portable
+          path: cpp/dist/*-cpp-windows-*-portable.exe
 
   release:
     name: Publish GitHub release
     needs:
-      - mac
-      - windows-portable
-      - windows-tauri
-      - windows-cplus2
+      - mac-normal
+      - mac-rust
+      - windows-normal
+      - windows-rust
+      - windows-cpp
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/')
 
@@ -147,29 +188,12 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Download macOS artifacts
+      - name: Download portable artifacts
         uses: actions/download-artifact@v4
         with:
-          name: api-key-checker-macos
+          pattern: api-key-checker-*-portable
           path: release-assets
-
-      - name: Download Windows Portable artifacts
-        uses: actions/download-artifact@v4
-        with:
-          name: api-key-checker-windows-portable
-          path: release-assets
-
-      - name: Download Windows Tauri artifacts
-        uses: actions/download-artifact@v4
-        with:
-          name: api-key-checker-windows-rust-release
-          path: release-assets
-
-      - name: Download Windows Cplus2 artifacts
-        uses: actions/download-artifact@v4
-        with:
-          name: api-key-checker-windows-Cplus2-portable
-          path: release-assets
+          merge-multiple: true
 
       - name: Create or update release
         env:
@@ -177,7 +201,8 @@ jobs:
           TAG_NAME: ${{ github.ref_name }}
         run: |
           if gh release view "$TAG_NAME" >/dev/null 2>&1; then
+            gh release edit "$TAG_NAME" --title "$TAG_NAME rust cpp normal"
             gh release upload "$TAG_NAME" release-assets/* --clobber
           else
-            gh release create "$TAG_NAME" release-assets/* --title "$TAG_NAME" --generate-notes
+            gh release create "$TAG_NAME" release-assets/* --title "$TAG_NAME rust cpp normal" --generate-notes
           fi

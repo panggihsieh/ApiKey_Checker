@@ -66,15 +66,25 @@ token；建議使用 `npm run dev` 或桌面版自動產生 token，不要手動
 http://localhost:5173/?helperPort=8788#helperToken=...
 ```
 
-## 桌面 App / 安裝檔
+## v0.1.4 變更
 
-桌面版使用 Electron 打包。桌面模式會自動在 localhost 啟動 Web UI 與本機
-helper，因此使用者不需要另外執行 `npm run helper`。
+- 提供 `normal`、`rust`、`cpp` 三種 Windows x64 portable 版本。
+- 提供 `normal` 與 `rust` 兩種 macOS portable DMG。
+- 統一 Release 檔名，所有版本都標示 `portable`，並將 `Cplus2` 正式改名為 `cpp`。
+- Rust helper server 與 cpp helper server 保留既有 API 介面。
+
+Made with Codex 5.6.
+
+## 桌面 App / Portable 版本
+
+桌面版提供 Electron `normal`、Tauri `rust` 與原生 C++ `cpp` 版本。桌面模式會
+自動在 localhost 啟動 Web UI 與本機 helper，因此使用者不需要另外執行
+`npm run helper`。
 
 ### 下載並在 macOS 執行
 
 1. 前往 [GitHub Releases](https://github.com/panggihsieh/ApiKey_Checker/releases)。
-2. 下載最新版 release 裡的 `API.Key.Checker-*-mac-arm64.dmg`。
+2. 下載最新版 release 裡的 `API-Key-Checker-*-normal-mac-arm64-portable.dmg`。
 3. 開啟下載的 `.dmg` 檔。
 4. 將 `API Key Checker` 拖曳到 `Applications`。
 5. 第一次開啟時，如果 macOS 顯示未簽章或無法驗證開發者，請在 Finder 的
@@ -102,25 +112,17 @@ npm start
 npm run dist:mac
 ```
 
-在 Windows 或 Windows CI runner 產生 Windows x64 安裝檔：
+在 Windows 或 Windows CI runner 產生 Windows x64 normal portable：
 
 ```bash
-npm run dist:win
+npm run dist:win:portable
 ```
 
-Windows build 已設定同時產生 NSIS `.exe` 安裝檔與 MSI `.msi` 安裝檔。MSI
-會使用 WiX 工具鏈，因此最可靠的方式是在 Windows 上建置；從 macOS 跨平台建置
-可能會因 Wine/WiX 環境不完整而失敗。
+Windows Release 僅提供三個 portable `.exe`，不包含 setup、NSIS 或 MSI：
 
-Apple Silicon macOS 可在安裝 `msitools` 後使用本機 MSI fallback：
-
-```bash
-brew install msitools
-npm run dist:win:msi-local
-```
-
-這會先用 Electron Builder 建立 Windows unpacked app，再用 native `wixl`
-從 `dist/win-unpacked` 建立 per-user MSI。
+- `API-Key-Checker-*-normal-windows-x64-portable.exe`
+- `API-Key-Checker-*-rust-windows-x64-portable.exe`
+- `API-Key-Checker-*-cpp-windows-x64-portable.exe`
 
 目前 macOS build 未使用 Apple Developer ID 簽章（`identity: null`），適合本機
 測試或內部使用。建置流程會對 `.app` 做本機 ad-hoc 簽章，避免 bundle 資源簽章
@@ -261,16 +263,25 @@ the token is generated automatically, and do not expose the helper manually:
 http://localhost:5173/?helperPort=8788#helperToken=...
 ```
 
-## Desktop App / Installers
+## v0.1.4 Changes
 
-The desktop app is packaged with Electron. In desktop mode, the app starts both
-the web UI and the local helper automatically on localhost, so users do not need
-to run `npm run helper` separately.
+- Added `normal`, `rust`, and `cpp` Windows x64 portable editions.
+- Added `normal` and `rust` macOS portable DMGs.
+- Unified all release filenames with the `portable` label and renamed `Cplus2` to `cpp`.
+- Preserved the existing helper API in the Rust and cpp implementations.
+
+Made with Codex 5.6.
+
+## Desktop App / Portable Releases
+
+The desktop app is available as Electron `normal`, Tauri `rust`, and native C++
+`cpp` editions. Each desktop edition starts the web UI and local helper on
+localhost, so users do not need to run `npm run helper` separately.
 
 ### Download and Run on macOS
 
 1. Go to [GitHub Releases](https://github.com/panggihsieh/ApiKey_Checker/releases).
-2. Download `API.Key.Checker-*-mac-arm64.dmg` from the latest release.
+2. Download `API-Key-Checker-*-normal-mac-arm64-portable.dmg` from the latest release.
 3. Open the downloaded `.dmg` file.
 4. Drag `API Key Checker` into `Applications`.
 5. On first launch, if macOS says the app is unsigned or the developer cannot be
@@ -291,34 +302,18 @@ Build a macOS DMG:
 npm run dist:mac
 ```
 
-Build Windows x64 installers and portable app on Windows or a Windows CI runner:
-
-```bash
-npm run dist:win
-```
-
-The Windows build is configured to produce an NSIS `.exe` installer, a portable
-`.exe`, and an MSI `.msi` installer. To build only the portable app:
+Build the Windows x64 normal portable app on Windows or a Windows CI runner:
 
 ```bash
 npm run dist:win:portable
 ```
 
-The portable executable is written to `dist/` as
-`API Key Checker-*-windows-portable-x64.exe`. MSI generation uses WiX tooling, so
-it is most reliable on Windows. Cross-building MSI from macOS can fail if
-Wine/WiX is unavailable or misconfigured.
+Windows releases contain only these three portable executables, with no setup,
+NSIS, or MSI assets:
 
-On Apple Silicon macOS, a local MSI fallback is available after `msitools` is
-installed:
-
-```bash
-brew install msitools
-npm run dist:win:msi-local
-```
-
-This builds the Windows unpacked app with Electron Builder, then creates a
-per-user MSI from `dist/win-unpacked` using native `wixl`.
+- `API-Key-Checker-*-normal-windows-x64-portable.exe`
+- `API-Key-Checker-*-rust-windows-x64-portable.exe`
+- `API-Key-Checker-*-cpp-windows-x64-portable.exe`
 
 The macOS build is currently unsigned (`identity: null`) for local distribution.
 For public distribution, configure Apple Developer code signing and notarization.
