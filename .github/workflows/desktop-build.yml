@@ -37,13 +37,10 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: api-key-checker-macos
-          path: |
-            dist/*.dmg
-            dist/*.dmg.blockmap
-            dist/latest-mac.yml
+          path: dist/*.dmg
 
-  windows-exe:
-    name: Build Windows EXE
+  windows-portable:
+    name: Build Windows Portable
     runs-on: windows-2022
 
     steps:
@@ -62,21 +59,60 @@ jobs:
       - name: Check syntax
         run: npm run check
 
-      - name: Build NSIS EXE
-        run: npm run dist:win:exe -- --publish never
+      - name: Build Portable EXE
+        run: npm run dist:win:portable -- --publish never
 
-      - name: Upload Windows EXE
+      - name: Upload Windows Portable
         uses: actions/upload-artifact@v4
         with:
-          name: api-key-checker-windows-exe
-          path: |
-            dist/*.exe
-            dist/*.blockmap
-            dist/latest.yml
+          name: api-key-checker-windows-portable
+          path: dist/*portable*.exe
 
-  windows-msi:
-    name: Build Windows MSI
-    runs-on: ubuntu-latest
+  windows-tauri:
+    name: Build Windows Tauri EXE
+    runs-on: windows-2022
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: rust/package-lock.json
+
+      - name: Setup Rust
+        run: rustup default stable
+
+      - name: Install Tauri dependencies
+        working-directory: rust
+        run: npm ci
+
+      - name: Test Rust workspace
+        working-directory: rust
+        run: cargo test --workspace
+
+      - name: Build Tauri installer
+        working-directory: rust
+        run: npm run build:exe
+
+      - name: Build Tauri portable
+        working-directory: rust
+        run: npm run build:portable
+
+      - name: Upload Windows Tauri EXE
+        uses: actions/upload-artifact@v4
+        with:
+          name: api-key-checker-windows-rust-release
+          path: |
+            rust/target/release/bundle/nsis/*.exe
+            rust/target/release/bundle/portable/*.exe
+
+  windows-cplus2:
+    name: Build Windows Cplus2 Portable
+    runs-on: windows-2022
 
     steps:
       - name: Checkout
@@ -88,32 +124,22 @@ jobs:
           node-version: 24
           cache: npm
 
-      - name: Install system dependencies
-        run: sudo apt-get update && sudo apt-get install -y wixl
+      - name: Build Cplus2 portable
+        run: npm run cpp:build:portable
 
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Check syntax
-        run: npm run check
-
-      - name: Build MSI
-        run: npm run dist:win:msi -- --publish never
-
-      - name: Upload Windows MSI
+      - name: Upload Windows Cplus2 Portable
         uses: actions/upload-artifact@v4
         with:
-          name: api-key-checker-windows-msi
-          path: |
-            dist/*.msi
-            dist/wixl-project.wxs
+          name: api-key-checker-windows-Cplus2-portable
+          path: cpp/dist/*Cplus2*.exe
 
   release:
     name: Publish GitHub release
     needs:
       - mac
-      - windows-exe
-      - windows-msi
+      - windows-portable
+      - windows-tauri
+      - windows-cplus2
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/')
 
@@ -127,16 +153,22 @@ jobs:
           name: api-key-checker-macos
           path: release-assets
 
-      - name: Download Windows EXE artifacts
+      - name: Download Windows Portable artifacts
         uses: actions/download-artifact@v4
         with:
-          name: api-key-checker-windows-exe
+          name: api-key-checker-windows-portable
           path: release-assets
 
-      - name: Download Windows MSI artifacts
+      - name: Download Windows Tauri artifacts
         uses: actions/download-artifact@v4
         with:
-          name: api-key-checker-windows-msi
+          name: api-key-checker-windows-rust-release
+          path: release-assets
+
+      - name: Download Windows Cplus2 artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: api-key-checker-windows-Cplus2-portable
           path: release-assets
 
       - name: Create or update release

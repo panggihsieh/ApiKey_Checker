@@ -14,12 +14,17 @@
     "helper": "node server/helper.js",
     "test": "node --test",
     "check": "node --check src/app.js && node --check src/providers.js && node --check server/helper.js && node --check server/static.js && node --check scripts/local.js && node --check scripts/build-msi-wixl.js && node --check scripts/sign-mac-ad-hoc.js && node --check electron/main.js",
+    "rust:test": "cd rust && cargo test --workspace",
+    "rust:build:exe": "cd rust && npm run build:exe",
+    "rust:build:portable": "cd rust && npm run build:portable",
+    "cpp:build:portable": "powershell -NoProfile -ExecutionPolicy Bypass -File cpp/build.ps1",
     "dist:mac": "electron-builder --mac dmg",
     "dist:win:exe": "electron-builder --win nsis --x64",
+    "dist:win:portable": "electron-builder --win portable --x64",
     "dist:win:msi": "electron-builder --win dir --x64 --publish never && node scripts/build-msi-wixl.js",
-    "dist:win": "electron-builder --win nsis msi --x64",
+    "dist:win": "electron-builder --win portable --x64",
     "dist:win:msi-local": "npm run dist:win:msi",
-    "dist": "electron-builder --mac dmg --win nsis msi --x64"
+    "dist": "electron-builder --mac dmg --win portable --x64"
   },
   "build": {
     "appId": "com.apikeychecker.desktop",
@@ -45,13 +50,15 @@
     },
     "win": {
       "target": [
-        "nsis",
-        "msi"
+        "portable"
       ]
     },
     "nsis": {
       "oneClick": false,
       "allowToChangeInstallationDirectory": true
+    },
+    "portable": {
+      "artifactName": "${productName}-${version}-windows-portable-${arch}.${ext}"
     }
   },
   "devDependencies": {

@@ -291,16 +291,23 @@ Build a macOS DMG:
 npm run dist:mac
 ```
 
-Build Windows x64 installers on Windows or a Windows CI runner:
+Build Windows x64 installers and portable app on Windows or a Windows CI runner:
 
 ```bash
 npm run dist:win
 ```
 
-The Windows build is configured to produce both an NSIS `.exe` installer and an
-MSI `.msi` installer. MSI generation uses WiX tooling, so it is most reliable on
-Windows. Cross-building MSI from macOS can fail if Wine/WiX is unavailable or
-misconfigured.
+The Windows build is configured to produce an NSIS `.exe` installer, a portable
+`.exe`, and an MSI `.msi` installer. To build only the portable app:
+
+```bash
+npm run dist:win:portable
+```
+
+The portable executable is written to `dist/` as
+`API Key Checker-*-windows-portable-x64.exe`. MSI generation uses WiX tooling, so
+it is most reliable on Windows. Cross-building MSI from macOS can fail if
+Wine/WiX is unavailable or misconfigured.
 
 On Apple Silicon macOS, a local MSI fallback is available after `msitools` is
 installed:

@@ -1,5 +1,11 @@
 node_modules/
 dist/
 downloads/
+release/
+rust/node_modules/
+rust/target/
+cpp/generated/
+cpp/dist/
+cpp/build/
 .DS_Store
 *.log

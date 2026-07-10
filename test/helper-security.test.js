@@ -1,6 +1,6 @@
 const assert = require("node:assert/strict");
 const test = require("node:test");
-const { createHelperServer, startHelperServer } = require("../server/helper");
+const { createHelperServer, resolveEnvValue, startHelperServer } = require("../server/helper");
 
 function listen(server) {
   return new Promise((resolve, reject) => {
@@ -108,6 +108,50 @@ test("helper check masks API keys instead of returning full values", async () =>
     delete process.env.OPENAI_API_KEY;
     await close(server);
   }
+});
+
+test("helper check reads fresh environment values through the injected reader", async () => {
+  const reads = [];
+  const server = createHelperServer({
+    token: "test-token-123456789012345678901234",
+    allowedOrigins: ["http://127.0.0.1:5173"],
+    readEnv: async (envVar) => {
+      reads.push(envVar);
+      return envVar === "DEEPSEEK_API_KEY" ? "sk-deepseek-secret-value" : "";
+    },
+  });
+  const port = await listen(server);
+
+  try {
+    const response = await fetch(`http://127.0.0.1:${port}/api/check`, {
+      method: "POST",
+      headers: {
+        Origin: "http://127.0.0.1:5173",
+        "Content-Type": "application/json",
+        "X-API-Key-Checker-Token": "test-token-123456789012345678901234",
+      },
+      body: JSON.stringify({ envVars: ["DEEPSEEK_API_KEY"] }),
+    });
+    const payload = await response.json();
+
+    assert.equal(response.status, 200);
+    assert.deepEqual(reads, ["DEEPSEEK_API_KEY"]);
+    assert.equal(payload.DEEPSEEK_API_KEY.status, "found");
+    assert.equal(payload.DEEPSEEK_API_KEY.maskedValue, "sk-d...alue");
+  } finally {
+    await close(server);
+  }
+});
+
+test("helper prefers fresh persistent values over stale launch environment", () => {
+  const value = resolveEnvValue("DEEPSEEK_API_KEY", {
+    profileEnv: {},
+    windowsUserEnv: "sk-new-user-value",
+    windowsSystemEnv: "",
+    processEnv: { DEEPSEEK_API_KEY: "sk-old-process-value" },
+  });
+
+  assert.equal(value, "sk-new-user-value");
 });
 
 test("helper save endpoint validates and saves API keys through the injected handler", async () => {

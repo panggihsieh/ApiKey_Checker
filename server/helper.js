@@ -261,6 +261,77 @@ function readProfileEnv() {
   return { profileEnv, profiles };
 }
 
+function execFileText(file, args, options = {}) {
+  return new Promise((resolve, reject) => {
+    childProcess.execFile(
+      file,
+      args,
+      {
+        timeout: 2000,
+        windowsHide: true,
+        ...options,
+      },
+      (error, stdout) => {
+        if (error) {
+          reject(error);
+          return;
+        }
+
+        resolve(stdout);
+      },
+    );
+  });
+}
+
+function parseWindowsEnv(output, envVar) {
+  const escapedName = envVar.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const linePattern = new RegExp(`^\\s*${escapedName}\\s+REG_\\w+\\s+(.+)$`, "im");
+  const match = String(output).match(linePattern);
+  return match ? match[1].trim() : "";
+}
+
+async function readWindowsRegistryEnv(hivePath, envVar) {
+  if (process.platform !== "win32") {
+    return "";
+  }
+
+  try {
+    const output = await execFileText("reg", ["query", hivePath, "/v", envVar]);
+    return parseWindowsEnv(output, envVar);
+  } catch {
+    return "";
+  }
+}
+
+function resolveEnvValue(envVar, sources) {
+  return (
+    sources.profileEnv?.[envVar] ||
+    sources.windowsUserEnv ||
+    sources.windowsSystemEnv ||
+    sources.processEnv?.[envVar] ||
+    ""
+  );
+}
+
+async function readEnvValue(envVar, profileEnv) {
+  const windowsUserEnv = await readWindowsRegistryEnv("HKCU\\Environment", envVar);
+  const windowsSystemEnv = await readWindowsRegistryEnv(
+    "HKLM\\SYSTEM\\CurrentControlSet\\Control\\Session Manager\\Environment",
+    envVar,
+  );
+
+  // Persistent sources are read fresh on each scan. process.env is only the
+  // helper's launch-time snapshot, so it can be stale after a key is changed.
+  return (
+    resolveEnvValue(envVar, {
+      profileEnv,
+      windowsUserEnv,
+      windowsSystemEnv,
+      processEnv: process.env,
+    })
+  );
+}
+
 function openTerminal() {
   if (process.platform === "darwin") {
     childProcess.spawn("open", ["-a", "Terminal"], {
@@ -271,18 +342,18 @@ function openTerminal() {
   }
 
   if (process.platform === "win32") {
-    childProcess.spawn("cmd.exe", ["/c", "start", "", "cmd.exe"], {
+    childProcess.spawn("powershell.exe", ["-NoExit"], {
       detached: true,
       windowsHide: true,
       stdio: "ignore",
     }).unref();
-    return "Command Prompt";
+    return "PowerShell";
   }
 
   throw new Error("Opening a terminal is supported only on macOS and Windows.");
 }
 
-async function handleCheck(request, response, allowedOrigins) {
+async function handleCheck(request, response, allowedOrigins, readEnvHandler = readEnvValue) {
   const body = await readJson(request);
   const envVars = Array.isArray(body.envVars) ? body.envVars : [];
   const results = {};
@@ -293,7 +364,7 @@ async function handleCheck(request, response, allowedOrigins) {
       continue;
     }
 
-    const value = process.env[envVar] || profileEnv[envVar] || "";
+    const value = await readEnvHandler(envVar, profileEnv);
     results[envVar] = {
       status: value ? "found" : "missing",
       maskedValue: maskKey(value),
@@ -333,6 +404,7 @@ function createHelperServer(options = {}) {
   const allowedOrigins = options.allowedOrigins || defaults.allowedOrigins;
   const openTerminalHandler = options.openTerminal || openTerminal;
   const saveEnvHandler = options.saveEnv || saveEnv;
+  const readEnvHandler = options.readEnv || readEnvValue;
 
   return http.createServer(async (request, response) => {
     try {
@@ -359,7 +431,7 @@ function createHelperServer(options = {}) {
       }
 
       if (request.method === "POST" && url.pathname === "/api/check") {
-        await handleCheck(request, response, allowedOrigins);
+        await handleCheck(request, response, allowedOrigins, readEnvHandler);
         return;
       }
 
@@ -413,5 +485,6 @@ module.exports = {
   createHelperServer,
   maskKey,
   parseShellProfile,
+  resolveEnvValue,
   startHelperServer,
 };
