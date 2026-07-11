@@ -73,6 +73,16 @@ http://localhost:5173/?helperPort=8788#helperToken=...
 - cpp 版新增系統匣選單，可重新開啟介面或正常結束背景 helper。
 - App 內的「開啟終端」功能保留，僅在使用者主動點擊時開啟 PowerShell。
 
+### Rust Windows portable 修正
+
+- 修正選取 Provider 後，WebView 掃描逾時可能反覆顯示 `signal is aborted without reason` 的問題。
+- 取消 Rust 版在視窗 focus、頁面 visibility 變更與每 10 秒計時器觸發的背景掃描；現在只在使用者選取 Provider 時掃描。
+- 快速切換 Provider 時只套用最後一次掃描結果，避免舊請求重複更新畫面。
+- Provider 表格改為在記憶體中完成後一次替換，隱藏清空與逐列重建造成的閃爍。
+- Cargo 現在會在 `rust/app` 變更後重新嵌入前端資源，避免 portable EXE 包含舊版 JavaScript。
+- 修正版沿用 `v0.1.5`，只覆蓋 Windows Rust portable；`normal`、`cpp` 與 Rust macOS 版本未變更。
+- Windows Rust portable SHA-256：`7B396AA797B3D6D4E8A9BE97033EBE9E1E5BC9B19BAF573199CA22E742DE5776`。
+
 ## v0.1.4 變更
 
 - 提供 `normal`、`rust`、`cpp` 三種 Windows x64 portable 版本。
@@ -276,6 +286,16 @@ http://localhost:5173/?helperPort=8788#helperToken=...
 - Rust/Tauri release builds now use the Windows GUI subsystem.
 - The cpp edition now provides a system tray menu to reopen the UI or stop the background helper cleanly.
 - The in-app Open terminal command remains available and opens PowerShell only when explicitly requested.
+
+### Rust Windows portable fixes
+
+- Fixed repeated `signal is aborted without reason` alerts after a Provider selection timed out in WebView.
+- Removed Rust background scans triggered by window focus, page visibility changes, and the 10-second timer; scans now run only after an explicit Provider selection.
+- Only the latest scan result is applied when Providers are changed quickly, preventing stale requests from redrawing the UI.
+- Provider rows are built in memory and replaced atomically to hide clear-and-rebuild flicker.
+- Cargo now rebuilds the embedded frontend whenever `rust/app` changes, preventing stale JavaScript from being packaged in the portable executable.
+- The fix remains under `v0.1.5` and replaces only the Windows Rust portable asset; the `normal`, `cpp`, and Rust macOS editions are unchanged.
+- Windows Rust portable SHA-256: `7B396AA797B3D6D4E8A9BE97033EBE9E1E5BC9B19BAF573199CA22E742DE5776`.
 
 ## v0.1.4 Changes
 
