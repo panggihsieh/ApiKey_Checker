@@ -2,7 +2,6 @@ import { curatedProviders } from "./providers.js?v=20260705-provider-count";
 import { rankProviders } from "./ranking.js?v=20260706-provider-score";
 
 const defaultHelperPort = "8787";
-const autoScanIntervalMs = 10000;
 const languageLabel = document.querySelector("#languageLabel");
 const languageSelect = document.querySelector("#languageSelect");
 const providerSelect = document.querySelector("#providerSelect");
@@ -52,6 +51,7 @@ const state = {
   helperBaseUrl: "",
   helperToken: "",
   scanResults: {},
+  scanRequestId: 0,
   visibleKeys: new Set(),
   inputValues: {},
   alpha: 0.05,
@@ -897,8 +897,7 @@ function clearProviderSelection() {
 
 function renderRows() {
   const providers = getSelectedProviders();
-
-  statusRows.replaceChildren();
+  const rows = document.createDocumentFragment();
 
   for (const provider of providers) {
     for (const envVar of provider.envVars) {
@@ -1005,7 +1004,7 @@ function renderRows() {
       }
 
       row.append(providerCell, envCell, statusCell, valueCell);
-      statusRows.append(row);
+      rows.append(row);
     }
   }
 
@@ -1016,9 +1015,10 @@ function renderRows() {
     cell.className = "empty-state";
     cell.textContent = t("emptyState");
     row.append(cell);
-    statusRows.append(row);
+    rows.append(row);
   }
 
+  statusRows.replaceChildren(rows);
   renderAnalysis();
 }
 
@@ -1075,6 +1075,8 @@ async function checkHelper() {
 }
 
 async function scanKeys() {
+  const requestId = ++state.scanRequestId;
+
   if (!state.helperConnected) {
     state.scanResults = {};
     renderRows();
@@ -1098,16 +1100,17 @@ async function scanKeys() {
     throw new Error(t("unableToScan"));
   }
 
-  state.scanResults = await response.json();
-  renderRows();
-}
-
-function scheduleScanIfUseful() {
-  if (!state.helperConnected || document.hidden || getSelectedEnvVars().length === 0) {
+  const scanResults = await response.json();
+  if (requestId !== state.scanRequestId) {
     return;
   }
 
-  scanKeys().catch((error) => alert(error.message));
+  state.scanResults = scanResults;
+  renderRows();
+}
+
+function handleScanError(error) {
+  console.warn("API key scan failed", error);
 }
 
 async function saveApiKey(envVar) {
@@ -1179,16 +1182,14 @@ function bindEvents() {
   });
 
   providerSelect.addEventListener("change", () => {
-    scanKeys().catch((error) => alert(error.message));
-    renderRows();
+    scanKeys().catch(handleScanError);
   });
 
   selectTopButton.addEventListener("click", () => {
     Array.from(providerSelect.options).forEach((option) => {
       option.selected = true;
     });
-    scanKeys().catch((error) => alert(error.message));
-    renderRows();
+    scanKeys().catch(handleScanError);
   });
 
   clearButton.addEventListener("click", () => {
@@ -1238,12 +1239,6 @@ function bindEvents() {
   exportSvgButton?.addEventListener("click", exportSvg);
 
   exportCsvButton?.addEventListener("click", exportCsv);
-
-  window.addEventListener("focus", scheduleScanIfUseful);
-
-  document.addEventListener("visibilitychange", scheduleScanIfUseful);
-
-  window.setInterval(scheduleScanIfUseful, autoScanIntervalMs);
 
   providerCountSelect.addEventListener("change", () => {
     state.providerLimit = Number(providerCountSelect.value);
